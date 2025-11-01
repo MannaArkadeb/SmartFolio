@@ -236,7 +236,7 @@ PPO_PARAMS = {
 
 def model_predict(args, model, test_loader):
     # 读取指数 benchmark 数据，用于计算信息系数 IR
-    df_benchmark = pd.read_csv(f"../dataset/index_data/{args.market}_index_2024.csv")
+    df_benchmark = pd.read_csv(f"./dataset/index_data/{args.market}_index_2024.csv")
     df_benchmark = df_benchmark[(df_benchmark['datetime'] >= args.test_start_date) &
                                 (df_benchmark['datetime'] <= args.test_end_date)]
     benchmark_return = df_benchmark['daily_return']
@@ -268,7 +268,7 @@ def train_model_and_predict(model, args, train_loader, val_loader, test_loader):
         expert_trajectories = generate_expert_trajectories_ga(
             args, 
             train_loader.dataset, 
-            num_trajectories=10000,
+            num_trajectories=100,
             risk_category='mixed',  # Use all risk categories
             ga_generations=30
         )
@@ -320,7 +320,7 @@ def train_model_and_predict(model, args, train_loader, val_loader, test_loader):
             env_train.seed(seed=args.seed)
             env_train, _ = env_train.get_sb_env()
             model.set_env(env_train)
-            timesteps = 500
+            timesteps = 100
             # 3. 训练RL代理
             print(f"Training RL agent for {timesteps} timesteps...")
             trained_model = model.learn(total_timesteps=timesteps)

@@ -118,7 +118,7 @@ class StockSelectionGA:
             'diversification': diversification_metric,
             'correlation': correlation_metric,
             'quality': quality_metric
-        }
+        } #type: ignore
     
     def evaluate_chromosome(self,
                            chromosome: np.ndarray,
@@ -399,7 +399,7 @@ def save_expert_trajectories(trajectories: List, save_path: str):
     """Save expert trajectories"""
     with open(save_path, 'wb') as f:
         pickle.dump(trajectories, f)
-    print(f"✓ Saved to {save_path}")
+    print(f"Saved to {save_path}")
 
 
 if __name__ == '__main__':
