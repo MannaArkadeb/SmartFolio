@@ -1,7 +1,10 @@
 import os
 import time
+import json
 import argparse
 import warnings
+from datetime import datetime
+import calendar
 warnings.filterwarnings("ignore", category=UserWarning)
 import pandas as pd
 import torch
@@ -14,6 +17,147 @@ from trainer.irl_trainer import *
 from torch_geometric.loader import DataLoader
 
 PATH_DATA = f'./dataset/'
+
+
+def _infer_month_dates(shard):
+    """Infer month label, start, and end date strings from a manifest shard."""
+    month_label = shard.get("month")
+    month_start = shard.get("month_start") or shard.get("start_date") or shard.get("train_start_date")
+    month_end = shard.get("month_end") or shard.get("end_date") or shard.get("train_end_date")
+
+    # Normalise the month label
+    parsed_month = None
+    if month_label:
+        for fmt in ("%Y-%m", "%Y-%m-%d"):
+            try:
+                parsed_month = datetime.strptime(month_label, fmt)
+                break
+            except ValueError:
+                continue
+    if parsed_month is None and month_start:
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+            try:
+                parsed_month = datetime.strptime(month_start, fmt)
+                month_label = parsed_month.strftime("%Y-%m")
+                break
+            except ValueError:
+                continue
+
+    if parsed_month and not month_start:
+        month_start = parsed_month.strftime("%Y-%m-01")
+
+    if parsed_month and not month_end and month_start:
+        last_day = calendar.monthrange(parsed_month.year, parsed_month.month)[1]
+        month_end = parsed_month.replace(day=last_day).strftime("%Y-%m-%d")
+
+    if not (month_label and month_start and month_end):
+        raise ValueError(f"Unable to infer complete month information from shard: {shard}")
+
+    return month_label, month_start, month_end
+
+
+def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_path=None):
+    """Fine-tune the PPO model on the latest unprocessed monthly shard."""
+    manifest_file = manifest_path
+    if not os.path.exists(manifest_file):
+        raise FileNotFoundError(f"Monthly manifest not found at {manifest_file}")
+
+    with open(manifest_file, "r", encoding="utf-8") as fh:
+        manifest = json.load(fh)
+
+    shards = manifest.get("monthly_shards", [])
+    if not shards:
+        raise ValueError("Manifest does not contain any 'monthly_shards'")
+
+    unprocessed = []
+    for idx, shard in enumerate(shards):
+        if not shard.get("processed", False):
+            try:
+                month_label, month_start, month_end = _infer_month_dates(shard)
+            except ValueError:
+                continue
+            unprocessed.append((idx, shard, month_label, month_start, month_end))
+
+    if not unprocessed:
+        raise RuntimeError("No unprocessed monthly shards available for fine-tuning")
+
+    # Pick the most recent month
+    def _month_sort_key(item):
+        _, _, month_label, _, _ = item
+        return datetime.strptime(month_label, "%Y-%m")
+
+    shard_idx, shard, month_label, month_start, month_end = max(unprocessed, key=_month_sort_key)
+
+    base_dir = (
+        shard.get("data_dir")
+        or shard.get("base_dir")
+        or manifest.get("base_dir")
+        or f'dataset_default/data_train_predict_{args.market}/{args.horizon}_{args.relation_type}/'
+    )
+
+    if not os.path.exists(base_dir):
+        raise FileNotFoundError(f"Monthly shard data directory not found: {base_dir}")
+
+    monthly_dataset = AllGraphDataSampler(
+        base_dir=base_dir,
+        date=True,
+        train_start_date=month_start,
+        train_end_date=month_end,
+        mode="train",
+    )
+
+    if len(monthly_dataset) == 0:
+        raise ValueError(f"Monthly dataset for {month_label} is empty (start={month_start}, end={month_end})")
+
+    monthly_loader = DataLoader(
+        monthly_dataset,
+        batch_size=len(monthly_dataset),
+        pin_memory=True,
+        collate_fn=lambda x: x,
+        drop_last=True,
+    )
+
+    env_init = create_env_init(args, data_loader=monthly_loader)
+
+    checkpoint_candidates = [
+        shard.get("checkpoint"),
+        shard.get("checkpoint_path"),
+        getattr(args, "resume_model_path", None),
+        getattr(args, "baseline_checkpoint", None),
+    ]
+    checkpoint_candidates = [p for p in checkpoint_candidates if p]
+    checkpoint_path = next((p for p in checkpoint_candidates if os.path.exists(p)), None)
+
+    if checkpoint_path is None:
+        raise FileNotFoundError("No valid base checkpoint found for fine-tuning")
+
+    print(f"Fine-tuning {checkpoint_path} on month {month_label} ({month_start} to {month_end})")
+    model = PPO.load(checkpoint_path, env=env_init, device=args.device)
+    model.set_env(env_init)
+    model.learn(total_timesteps=getattr(args, "fine_tune_steps", 5000))
+
+    os.makedirs(args.save_dir, exist_ok=True)
+    month_slug = month_label.replace("/", "-")
+    out_path = os.path.join(args.save_dir, f"{args.model_name}_{month_slug}.zip")
+    model.save(out_path)
+    print(f"Saved fine-tuned checkpoint to {out_path}")
+
+    # Update manifest bookkeeping
+    shard.update({
+        "processed": True,
+        "checkpoint_path": out_path,
+        "processed_at": datetime.utcnow().isoformat(timespec="seconds"),
+    })
+    manifest["monthly_shards"][shard_idx] = shard
+    manifest["last_fine_tuned_month"] = month_label
+    manifest["last_checkpoint_path"] = out_path
+
+    output_manifest = bookkeeping_path or manifest_file
+    with open(output_manifest, "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=2)
+    print(f"Updated manifest at {output_manifest}")
+
+    return out_path
 
 def train_predict(args, predict_dt):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)
@@ -92,6 +236,8 @@ if __name__ == '__main__':
                         help="Minimum Sharpe ratio required to promote a fine-tuned checkpoint")
     parser.add_argument("--promotion_max_drawdown", type=float, default=0.2,
                         help="Maximum acceptable drawdown (absolute fraction, e.g. 0.2 for 20%) for promotion")
+    parser.add_argument("--run_monthly_fine_tune", action="store_true",
+                        help="Run monthly fine-tuning using the manifest instead of full training")
     # Training hyperparameters
     parser.add_argument("--irl_epochs", type=int, default=50, help="Number of IRL training epochs")
     parser.add_argument("--rl_timesteps", type=int, default=10000, help="Number of RL timesteps for training")
@@ -107,9 +253,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # debug 用参数设置
+    args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
     args.model_name = 'SmartFolio'
     args.relation_type = 'hy'
-    args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
     args.train_start_date = '2020-01-06'
     args.train_end_date = '2023-01-31'
     args.val_start_date = '2023-02-01'
@@ -212,18 +358,22 @@ if __name__ == '__main__':
         else:
             raise ValueError(f"Unknown market {args.market} and data directory {data_dir} does not exist")
     print("market:", args.market, "num_stocks:", args.num_stocks)
-    trained_model = train_predict(args, predict_dt='2024-12-30')
-    # save PPO model checkpoint
-    try:
-        ts = time.strftime('%Y%m%d_%H%M%S')
-        out_path = os.path.join(args.save_dir, f"ppo_{args.policy.lower()}_{args.market}_{ts}")
-        # train_predict currently returns None; saving env-attached model is handled inside trainer
-        # If we had a handle, we could save here. Keep path ready for future.
-        print(f"Training run complete. To save PPO model, call model.save('{out_path}') where model is your PPO instance.")
-    except Exception as e:
-        print(f"Skip saving PPO model here: {e}")
+    if args.run_monthly_fine_tune:
+        checkpoint = fine_tune_month(args)
+        print(f"Monthly fine-tuning complete. Checkpoint: {checkpoint}")
+    else:
+        trained_model = train_predict(args, predict_dt='2024-12-30')
+        # save PPO model checkpoint
+        try:
+            ts = time.strftime('%Y%m%d_%H%M%S')
+            out_path = os.path.join(args.save_dir, f"ppo_{args.policy.lower()}_{args.market}_{ts}")
+            # train_predict currently returns None; saving env-attached model is handled inside trainer
+            # If we had a handle, we could save here. Keep path ready for future.
+            print(f"Training run complete. To save PPO model, call model.save('{out_path}') where model is your PPO instance.")
+        except Exception as e:
+            print(f"Skip saving PPO model here: {e}")
 
-    print(1)
+        print(1)
 
 
 
