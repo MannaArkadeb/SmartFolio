@@ -16,6 +16,7 @@ from stable_baselines3 import PPO
 from trainer.irl_trainer import *
 from torch_geometric.loader import DataLoader
 from utils.risk_profile import build_risk_profile
+from tools.pathway_temporal import discover_monthly_shards_with_pathway
 
 PATH_DATA = f'./dataset/'
 
@@ -67,6 +68,36 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         manifest = json.load(fh)
 
     shards = manifest.get("monthly_shards", {})
+    print(shards)
+    # If manifest lacks shards, optionally discover them using Pathway temporal.session windowing.
+    if (not shards) and getattr(args, "discover_months_with_pathway", False):
+        base_dir_guess = manifest.get(
+            "base_dir",
+            f'dataset_default/data_train_predict_{args.market}/{args.horizon}_{args.relation_type}/',
+        )
+        try:
+            discovered = discover_monthly_shards_with_pathway(
+                base_dir_guess, min_days=getattr(args, "min_month_days", 10)
+            )
+        except Exception as exc:  # pragma: no cover - defensive for unexpected Pathway errors
+            print(f"Pathway month discovery failed: {exc}")
+            discovered = []
+
+        if discovered:
+            shards = discovered
+            manifest["monthly_shards"] = discovered
+            manifest["base_dir"] = base_dir_guess
+            with open(manifest_file, "w", encoding="utf-8") as fh:
+                json.dump(manifest, fh, indent=2)
+            print(
+                f"Discovered {len(discovered)} monthly shards via Pathway windows; "
+                f"updated manifest at {manifest_file}"
+            )
+        else:
+            print(
+                "Pathway month discovery did not produce any shards; "
+                "ensure daily files are named YYYY-MM-DD*.pkl"
+            )
     if not shards:
         raise ValueError("Manifest does not contain any 'monthly_shards'")
 
@@ -154,7 +185,7 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
     if checkpoint_path is None:
         raise FileNotFoundError("No valid base checkpoint found for fine-tuning")
 
-    print(f"Fine-tuning {checkpoint_path} on month {month_label} ({month_start} to {month_end})")
+    print(f"Fine-tuning {checkpoint_path} on month {month_label} ({month_start} to {month_end}) for {args.fine_tune_steps} timesteps")
     model = PPO.load(checkpoint_path, env=env_init, device=args.device)
     model.set_env(env_init)
     model.learn(total_timesteps=getattr(args, "fine_tune_steps", 5000))
@@ -260,6 +291,10 @@ if __name__ == '__main__':
                         help="Maximum acceptable drawdown (absolute fraction, e.g. 0.2 for 20%) for promotion")
     parser.add_argument("--run_monthly_fine_tune", action="store_true",
                         help="Run monthly fine-tuning using the manifest instead of full training")
+    parser.add_argument("--discover_months_with_pathway", action="store_true",
+                        help="When manifest lacks shards, group daily pickle files into monthly windows using Pathway")
+    parser.add_argument("--min_month_days", type=int, default=10,
+                        help="Minimum number of daily files required to keep a discovered month window")
     parser.add_argument("--expert_cache_path", default=None,
                         help="Optional path to cache expert trajectories for reuse")
     # Training hyperparameters
