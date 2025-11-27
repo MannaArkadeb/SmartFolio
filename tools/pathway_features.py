@@ -16,7 +16,12 @@ def _build_schema(columns: List[str]) -> type:
 
 
 def compute_rolling_mean_std_pathway(
-    df: pd.DataFrame, cal_cols: List[str], lookback_days: int, *, max_rows: int = 50000
+    df: pd.DataFrame,
+    cal_cols: List[str],
+    lookback_days: int,
+    *,
+    max_rows: int = 50000,
+    cutoff_days: int | None = None,
 ) -> pd.DataFrame:
     """
     Compute rolling mean/std per ticker using Pathway sliding windows.
@@ -60,7 +65,14 @@ def compute_rolling_mean_std_pathway(
         lower_bound=-datetime.timedelta(days=lookback_days - 1),
         upper_bound=datetime.timedelta(0),
     )
-    grouped = table.windowby(table.dt, window=window, instance=table.kdcode)
+    behavior = (
+        pw.temporal.common_behavior(cutoff=datetime.timedelta(days=cutoff_days))
+        if cutoff_days
+        else None
+    )
+    grouped = table.windowby(
+        table.dt, window=window, instance=table.kdcode, behavior=behavior
+    )
 
     # Build reducers for each column
     reduce_kwargs = {

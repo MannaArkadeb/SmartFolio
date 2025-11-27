@@ -96,11 +96,15 @@ def get_label(df: pd.DataFrame, horizon: int = 1) -> pd.DataFrame:
 
 
 def cal_rolling_mean_std(
-    df: pd.DataFrame, cal_cols: List[str], lookback: int = 5, use_pathway: bool = False
+    df: pd.DataFrame, cal_cols: List[str], lookback: int = 5, use_pathway: bool = True
 ) -> pd.DataFrame:
     if use_pathway:
         try:
-            return compute_rolling_mean_std_pathway(df, cal_cols, lookback)
+            cutoff = None
+            if not df.empty:
+                dt_span = pd.to_datetime(df["dt"])
+                cutoff = (dt_span.max() - dt_span.min()).days + 1
+            return compute_rolling_mean_std_pathway(df, cal_cols, lookback, cutoff_days=cutoff)
         except Exception as exc:
             print(f"[warn] Pathway rolling failed ({exc}); falling back to pandas.")
     df = df.sort_values(by=["kdcode", "dt"])  # sort by ticker, date

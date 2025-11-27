@@ -42,7 +42,13 @@ def cal_rolling_mean_std(df, cal_cols=['close'], lookback=5, use_pathway=True):
     """
     if use_pathway:
         try:
-            return compute_rolling_mean_std_pathway(df, cal_cols, lookback)
+            cutoff = None
+            if not df.empty:
+                dt_span = pd.to_datetime(df["dt"])
+                cutoff = (dt_span.max() - dt_span.min()).days + 1
+            return compute_rolling_mean_std_pathway(
+                df, cal_cols, lookback, cutoff_days=cutoff
+            )
         except Exception as exc:
             print(f"[warn] Pathway rolling failed ({exc}); falling back to pandas.")
 
