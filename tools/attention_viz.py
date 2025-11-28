@@ -134,6 +134,24 @@ def top_edges(matrix: np.ndarray, k: int = 5) -> List[Tuple[int, int, float]]:
     return results
 
 
+def _call_policy_with_attention(policy_net, features_tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor] | None]:
+    """Handle legacy checkpoints that return logits only.
+
+    Some earlier HGAT checkpoints ignore the ``require_weights`` flag and only
+    return logits. We detect this condition and fall back to a ``None``
+    attention payload so the caller can raise a friendly error.
+    """
+
+    output = policy_net(features_tensor, require_weights=True)
+    if isinstance(output, tuple):
+        if len(output) >= 2:
+            return output[0], output[1]
+        if len(output) == 1:
+            return output[0], None
+        raise RuntimeError("policy_net returned an empty tuple; cannot proceed")
+    return output, None
+
+
 def collect_attention(
     loader: DataLoader,
     model: PPO,
@@ -230,24 +248,6 @@ def collect_attention(
         "allocations": stack_or_empty(allocation_history, 2),
         "component_labels": np.asarray(component_labels),
     }
-
-
-    def _call_policy_with_attention(policy_net, features_tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor] | None]:
-        """Handle legacy checkpoints that return logits only.
-
-        Some earlier HGAT checkpoints ignore the ``require_weights`` flag and only
-        return logits. We detect this condition and fall back to a ``None``
-        attention payload so the caller can raise a friendly error.
-        """
-
-        output = policy_net(features_tensor, require_weights=True)
-        if isinstance(output, tuple):
-            if len(output) >= 2:
-                return output[0], output[1]
-            if len(output) == 1:
-                return output[0], None
-            raise RuntimeError("policy_net returned an empty tuple; cannot proceed")
-        return output, None
 
 
 def summarise_attention(attention: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
@@ -405,145 +405,157 @@ def _ticker_for_index(index: int, tickers_info: Dict[str, object]) -> str:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    args = parse_args(argv)
-    metadata = auto_detect_metadata(args)
-    args.num_stocks = metadata.num_stocks
-    args.input_dim = metadata.input_dim
+    try:
+        with open("attention_viz_debug.log", "w") as f:
+            f.write(f"Starting attention_viz with argv: {argv}\n")
+        
+        args = parse_args(argv)
+        metadata = auto_detect_metadata(args)
 
-    tickers = _load_tickers(args.tickers_csv, expected_count=metadata.num_stocks)
+        args.num_stocks = metadata.num_stocks
+        args.input_dim = metadata.input_dim
 
-    print("Configuration:")
-    print(f"  Model path     : {args.model_path}")
-    print(f"  Dataset dir    : {metadata.data_dir}")
-    print(f"  Market         : {args.market}")
-    print(f"  Num stocks     : {args.num_stocks}")
-    print(f"  Feature dim    : {args.input_dim}")
-    if tickers.get("source"):
-        print(f"  Tickers CSV    : {tickers['source']}")
-    print(f"  Test range     : {args.test_start_date} to {args.test_end_date}")
+        tickers = _load_tickers(args.tickers_csv, expected_count=metadata.num_stocks)
 
-    test_dataset = AllGraphDataSampler(
-        base_dir=str(metadata.data_dir),
-        date=True,
-        test_start_date=args.test_start_date,
-        test_end_date=args.test_end_date,
-        mode="test",
-    )
-    if len(test_dataset) == 0:
-        raise RuntimeError("Test dataset is empty for the specified date range")
+        print("Configuration:")
+        print(f"  Model path     : {args.model_path}")
+        print(f"  Dataset dir    : {metadata.data_dir}")
+        print(f"  Market         : {args.market}")
+        print(f"  Num stocks     : {args.num_stocks}")
+        print(f"  Feature dim    : {args.input_dim}")
+        if tickers.get("source"):
+            print(f"  Tickers CSV    : {tickers['source']}")
+        print(f"  Test range     : {args.test_start_date} to {args.test_end_date}")
 
-    test_loader = DataLoader(test_dataset, batch_size=len(test_dataset), pin_memory=True)
-
-    model_path = Path(args.model_path).expanduser()
-    if model_path.is_dir():
-        raise ValueError(f"Model path {model_path} is a directory; provide a specific checkpoint file")
-    if not model_path.exists():
-        alternate = model_path.with_suffix("") if model_path.suffix == ".zip" else model_path.with_suffix(".zip")
-        hint = alternate if alternate.exists() else None
-        message = f"Checkpoint not found: {model_path}"
-        if hint:
-            message += f". Did you mean {hint}?"
-        raise FileNotFoundError(message)
-
-    print("Loading PPO model …")
-    model = PPO.load(str(model_path), env=None, device=args.device)
-
-    hgat_policy = model.policy.mlp_extractor.policy_net
-    component_labels = ["Self", "Industry", "Positive", "Negative"]
-    if getattr(hgat_policy, "no_ind", False):
-        component_labels = ["Self", "Negative"]
-    elif getattr(hgat_policy, "no_neg", False):
-        component_labels = ["Self", "Industry"]
-
-    attention = collect_attention(test_loader, model, args, torch.device(args.device), component_labels)
-    
-    # Validate that attention data was captured
-    total_captured = sum(attention[key].size for key in ("industry", "positive", "negative", "semantic"))
-    if total_captured == 0:
-        raise RuntimeError(
-            "No attention data was captured. All attention arrays are empty. "
-            "This indicates the model is not returning attention weights properly."
+        test_dataset = AllGraphDataSampler(
+            base_dir=str(metadata.data_dir),
+            date=True,
+            test_start_date=args.test_start_date,
+            test_end_date=args.test_end_date,
+            mode="test",
         )
-    
-    print(f"\nCaptured attention data:")
-    for key in ("industry", "positive", "negative", "semantic"):
-        shape = attention[key].shape
-        print(f"  {key:>10}: shape {shape}, size {attention[key].size}")
-    
-    summary = summarise_attention(attention)
+        if len(test_dataset) == 0:
+            raise RuntimeError("Test dataset is empty for the specified date range")
 
-    output_dir = _ensure_dir(Path(args.output_dir).expanduser().resolve())
+        test_loader = DataLoader(test_dataset, batch_size=len(test_dataset), pin_memory=True)
 
-    print("\nAverage relation attention (time & head averaged):")
-    edge_summaries: Dict[str, List[Tuple[int, int, float]]] = {}
-    for key in ("industry", "positive", "negative"):
-        matrix = summary.get(f"{key}_mean")
-        if matrix is None or matrix.size == 0:
-            continue
-        edges = top_edges(matrix, k=args.top_k_edges)
-        edge_summaries[key] = edges
-        print(f"- {key.title()} strongest edges:")
-        for src, dst, value in edges:
-            src_label = _ticker_for_index(src, tickers)
-            dst_label = _ticker_for_index(dst, tickers)
-            print(f"    {src:>3} ({src_label}) -> {dst:>3} ({dst_label}): {value:.4f}")
+        model_path = Path(args.model_path).expanduser()
+        if model_path.is_dir():
+            raise ValueError(f"Model path {model_path} is a directory; provide a specific checkpoint file")
+        if not model_path.exists():
+            alternate = model_path.with_suffix("") if model_path.suffix == ".zip" else model_path.with_suffix(".zip")
+            hint = alternate if alternate.exists() else None
+            message = f"Checkpoint not found: {model_path}"
+            if hint:
+                message += f". Did you mean {hint}?"
+            raise FileNotFoundError(message)
 
-    semantic = summary.get("semantic_mean")
-    if semantic is not None and semantic.size > 0:
-        print("\nAverage semantic fusion weights:")
-        for label, value in zip(component_labels, semantic):
-            print(f"- {label:>8}: {value:.4f}")
+        print("Loading PPO model …")
+        model = PPO.load(str(model_path), env=None, device=args.device)
 
-    if args.save_summary:
-        summary_path = output_dir / f"attention_summary_{args.market}.json"
-        top_edges_payload: Dict[str, List[Dict[str, object]]] = {}
-        for key, edges in edge_summaries.items():
-            formatted: List[Dict[str, object]] = []
-            for src, dst, val in edges:
-                formatted.append(
-                    {
-                        "source_index": int(src),
-                        "source_ticker": _ticker_for_index(src, tickers),
-                        "target_index": int(dst),
-                        "target_ticker": _ticker_for_index(dst, tickers),
-                        "mean_attention": float(val),
-                    }
-                )
-            top_edges_payload[key] = formatted
-        with summary_path.open("w", encoding="utf-8") as fh:
-            json.dump(
-                {
-                    "model_path": args.model_path,
-                    "dataset_dir": str(metadata.data_dir),
-                    "market": args.market,
-                    "num_stocks": args.num_stocks,
-                    "tickers": tickers.get("tickers", []),
-                    "tickers_source": tickers.get("source"),
-                    "semantic_labels": component_labels,
-                    "semantic_mean": summary.get("semantic_mean", []).tolist() if "semantic_mean" in summary else [],
-                    "avg_allocations": summary.get("avg_allocations", []).tolist() if "avg_allocations" in summary else [],
-                    "top_edges": top_edges_payload,
-                },
-                fh,
-                indent=2,
+        hgat_policy = model.policy.mlp_extractor.policy_net
+        component_labels = ["Self", "Industry", "Positive", "Negative"]
+        if getattr(hgat_policy, "no_ind", False):
+            component_labels = ["Self", "Negative"]
+        elif getattr(hgat_policy, "no_neg", False):
+            component_labels = ["Self", "Industry"]
+
+        attention = collect_attention(test_loader, model, args, torch.device(args.device), component_labels)
+        
+        # Validate that attention data was captured
+        total_captured = sum(attention[key].size for key in ("industry", "positive", "negative", "semantic"))
+        if total_captured == 0:
+            raise RuntimeError(
+                "No attention data was captured. All attention arrays are empty. "
+                "This indicates the model is not returning attention weights properly."
             )
-        print(f"Saved summary JSON to {summary_path}")
+        
+        print(f"\nCaptured attention data:")
+        for key in ("industry", "positive", "negative", "semantic"):
+            shape = attention[key].shape
+            print(f"  {key:>10}: shape {shape}, size {attention[key].size}")
+        
+        summary = summarise_attention(attention)
 
-    if args.save_raw:
-        raw_path = output_dir / f"attention_tensors_{args.market}.npz"
-        np.savez_compressed(
-            raw_path,
-            industry=attention["industry"],
-            positive=attention["positive"],
-            negative=attention["negative"],
-            semantic=attention["semantic"],
-            allocations=attention["allocations"],
-            semantic_labels=attention["component_labels"],
-        )
-        print(f"Saved raw attention tensors to {raw_path}")
+        output_dir = _ensure_dir(Path(args.output_dir).expanduser().resolve())
 
-    if args.plot:
-        try_plot(attention, summary, output_dir, component_labels)
+        print("\nAverage relation attention (time & head averaged):")
+        edge_summaries: Dict[str, List[Tuple[int, int, float]]] = {}
+        for key in ("industry", "positive", "negative"):
+            matrix = summary.get(f"{key}_mean")
+            if matrix is None or matrix.size == 0:
+                continue
+            edges = top_edges(matrix, k=args.top_k_edges)
+            edge_summaries[key] = edges
+            print(f"- {key.title()} strongest edges:")
+            for src, dst, value in edges:
+                src_label = _ticker_for_index(src, tickers)
+                dst_label = _ticker_for_index(dst, tickers)
+                print(f"    {src:>3} ({src_label}) -> {dst:>3} ({dst_label}): {value:.4f}")
+
+        semantic = summary.get("semantic_mean")
+        if semantic is not None and semantic.size > 0:
+            print("\nAverage semantic fusion weights:")
+            for label, value in zip(component_labels, semantic):
+                print(f"- {label:>8}: {value:.4f}")
+
+        if args.save_summary:
+            summary_path = output_dir / f"attention_summary_{args.market}.json"
+            top_edges_payload: Dict[str, List[Dict[str, object]]] = {}
+            for key, edges in edge_summaries.items():
+                formatted: List[Dict[str, object]] = []
+                for src, dst, val in edges:
+                    formatted.append(
+                        {
+                            "source_index": int(src),
+                            "source_ticker": _ticker_for_index(src, tickers),
+                            "target_index": int(dst),
+                            "target_ticker": _ticker_for_index(dst, tickers),
+                            "mean_attention": float(val),
+                        }
+                    )
+                top_edges_payload[key] = formatted
+            with summary_path.open("w", encoding="utf-8") as fh:
+                json.dump(
+                    {
+                        "model_path": args.model_path,
+                        "dataset_dir": str(metadata.data_dir),
+                        "market": args.market,
+                        "num_stocks": args.num_stocks,
+                        "tickers": tickers.get("tickers", []),
+                        "tickers_source": tickers.get("source"),
+                        "semantic_labels": component_labels,
+                        "semantic_mean": summary.get("semantic_mean", []).tolist() if "semantic_mean" in summary else [],
+                        "avg_allocations": summary.get("avg_allocations", []).tolist() if "avg_allocations" in summary else [],
+                        "top_edges": top_edges_payload,
+                    },
+                    fh,
+                    indent=2,
+                )
+            print(f"Saved summary JSON to {summary_path}")
+
+        if args.save_raw:
+            raw_path = output_dir / f"attention_tensors_{args.market}.npz"
+            np.savez_compressed(
+                raw_path,
+                industry=attention["industry"],
+                positive=attention["positive"],
+                negative=attention["negative"],
+                semantic=attention["semantic"],
+                allocations=attention["allocations"],
+                semantic_labels=attention["component_labels"],
+            )
+            print(f"Saved raw attention tensors to {raw_path}")
+
+        if args.plot:
+            try_plot(attention, summary, output_dir, component_labels)
+
+    except Exception as e:
+        with open("attention_viz_debug.log", "a") as f:
+            f.write(f"Error in attention_viz: {e}\n")
+            import traceback
+            traceback.print_exc(file=f)
+        raise
 
 
 if __name__ == "__main__":

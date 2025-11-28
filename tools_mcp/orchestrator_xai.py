@@ -26,9 +26,29 @@ def run_orchestrator_job(cfg: XAIRequest) -> Dict[str, object]:
     }
 
 
+RUN_XAI_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "date": {"type": "string"},
+        "monthly_log_csv": {"type": "string"},
+        "model_path": {"type": "string"},
+        "market": {"type": "string"},
+        "data_root": {"type": "string"},
+        "top_k": {"type": "integer"},
+        "lookback_days": {"type": "integer"},
+        "llm": {"type": "boolean"},
+        "llm_model": {"type": "string"},
+        "output_dir": {"type": "string"},
+        "monthly_run_id": {"type": "string"},
+    },
+    "required": ["date", "monthly_log_csv", "model_path", "lookback_days", "top_k", "market", "data_root", "output_dir", "monthly_run_id", "llm", "llm_model"],
+}
+
+
 @register_mcp_tool(
     name="run_xai_orchestrator",
     description="Run the full SmartFolio explainability pipeline and return artifact pointers.",
+    schema=RUN_XAI_SCHEMA,
 )
 def mcp_run_xai_orchestrator(payload: Dict[str, object]) -> Dict[str, object]:
     cfg = XAIRequest.from_payload(payload)

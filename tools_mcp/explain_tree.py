@@ -32,6 +32,8 @@ def _build_args(cfg: XAIRequest, start_date: str, end_date: str) -> List[str]:
         cfg.monthly_log_csv,
         "--focus-date",
         cfg.date,
+        "--tickers-csv",
+        "tickers.csv",
     ]
     if cfg.monthly_run_id:
         argv.extend(["--focus-run-id", cfg.monthly_run_id])
@@ -74,9 +76,29 @@ def run_tree_job(cfg: XAIRequest) -> Dict[str, object]:
     }
 
 
+TREE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "date": {"type": "string"},
+        "monthly_log_csv": {"type": "string"},
+        "model_path": {"type": "string"},
+        "market": {"type": "string"},
+        "data_root": {"type": "string"},
+        "top_k": {"type": "integer"},
+        "lookback_days": {"type": "integer"},
+        "llm": {"type": "boolean"},
+        "llm_model": {"type": "string"},
+        "output_dir": {"type": "string"},
+        "monthly_run_id": {"type": "string"},
+    },
+    "required": ["date", "monthly_log_csv", "model_path", "lookback_days", "top_k", "market", "data_root", "output_dir", "monthly_run_id", "llm", "llm_model"],
+}
+
+
 @register_mcp_tool(
     name="generate_tree_surrogate",
     description="Fit and persist decision-tree surrogates for the focus holdings.",
+    schema=TREE_SCHEMA,
 )
 def mcp_generate_tree_surrogate(payload: Dict[str, object]) -> Dict[str, object]:
     cfg = XAIRequest.from_payload(payload)

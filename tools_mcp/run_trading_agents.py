@@ -29,7 +29,7 @@ def run_trading_job(cfg: XAIRequest) -> Dict[str, object]:
                 ticker,
                 weight,
                 as_of=as_of,
-                lookback_days=30,
+                lookback_days=cfg.lookback_days,
                 max_articles=8,
                 use_llm=cfg.llm,
                 llm_model=cfg.llm_model,
@@ -64,9 +64,29 @@ def run_trading_job(cfg: XAIRequest) -> Dict[str, object]:
     return {"holdings": holdings, "reports": reports}
 
 
+RUN_TRADING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "date": {"type": "string"},
+        "monthly_log_csv": {"type": "string"},
+        "model_path": {"type": "string"},
+        "market": {"type": "string"},
+        "data_root": {"type": "string"},
+        "top_k": {"type": "integer"},
+        "lookback_days": {"type": "integer"},
+        "llm": {"type": "boolean"},
+        "llm_model": {"type": "string"},
+        "output_dir": {"type": "string"},
+        "monthly_run_id": {"type": "string"},
+    },
+    "required": ["date", "monthly_log_csv", "model_path", "lookback_days", "top_k", "market", "data_root", "output_dir", "monthly_run_id", "llm", "llm_model"],
+}
+
+
 @register_mcp_tool(
     name="run_trading_agent",
     description="Run the WeightSynthesisAgent for each focus holding and persist markdown reports.",
+    schema=RUN_TRADING_SCHEMA,
 )
 def mcp_run_trading_agent(payload: Dict[str, object]) -> Dict[str, object]:
     cfg = XAIRequest.from_payload(payload)

@@ -24,6 +24,8 @@ from typing import Dict, List, Optional
 
 import joblib
 import pandas as pd
+import os
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDUW_zkU6Zz5BEMiDGtEpmqaGVvy-Dr4R0"
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -123,6 +125,12 @@ def collect_holdings(cfg: OrchestratorConfig) -> List[Holding]:
 
 
 def run_attention_viz_module(cfg: OrchestratorConfig, start_date: str, end_date: str, out_dir: Path) -> Path:
+    debug_log = out_dir / "orchestrator_debug.log"
+    with open(debug_log, "a") as f:
+        f.write(f"Entering run_attention_viz_module. Date: {cfg.date}\n")
+        f.write(f"Module: {attention_viz_mod}\n")
+        f.write(f"File: {attention_viz_mod.__file__}\n")
+
     print(f"Running attention_viz for {start_date} → {end_date} (market={cfg.market})")
     argv = [
         "--model-path",
@@ -141,11 +149,37 @@ def run_attention_viz_module(cfg: OrchestratorConfig, start_date: str, end_date:
         "--save-raw",
         "--output-dir",
         str(out_dir),
+        "--tickers-csv",
+        "tickers.csv",
     ]
+    
+    with open(debug_log, "a") as f:
+        f.write(f"Argv prepared: {argv}\n")
+        f.write("Calling attention_viz_mod.main(argv)...\n")
+
     try:
-        attention_viz_mod.main(argv)
+        # Force reload to ensure we have the latest version
+        import importlib
+        import tools.attention_viz
+        importlib.reload(tools.attention_viz)
+        
+        print(f"DEBUG: Calling tools.attention_viz.main from {tools.attention_viz.__file__}")
+        print(f"DEBUG: argv = {argv}")
+        
+        tools.attention_viz.main(argv)
+        
+        with open(debug_log, "a") as f:
+            f.write("Returned from attention_viz_mod.main(argv)\n")
     except Exception as exc:  # noqa: BLE001
         print(f"[WARN] attention_viz failed: {exc}")
+        import traceback
+        traceback.print_exc()
+        print(f"[WARN] attention_viz failed: {exc}")
+        with open(debug_log, "a") as f:
+            f.write(f"Exception in attention_viz_mod.main: {exc}\n")
+            import traceback
+            traceback.print_exc(file=f)
+        (out_dir / "attention_viz_error.txt").write_text(f"Error: {exc}\nArgv: {argv}", encoding="utf-8")
     return out_dir / f"attention_summary_{cfg.market}.json"
 
 
@@ -174,6 +208,8 @@ def run_explain_tree_module(cfg: OrchestratorConfig, start_date: str, end_date: 
         str(cfg.monthly_log_csv),
         "--focus-date",
         cfg.date,
+        "--tickers-csv",
+        "tickers.csv",
     ]
     if cfg.monthly_run_id:
         argv.extend(["--focus-run-id", cfg.monthly_run_id])
