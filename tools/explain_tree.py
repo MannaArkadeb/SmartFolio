@@ -30,6 +30,7 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 
 import joblib
 import numpy as np
+import pandas as pd
 import torch
 from sklearn.metrics import r2_score
 from sklearn.tree import DecisionTreeRegressor, export_text
@@ -140,6 +141,7 @@ def build_feature_names(
     feature_labels: Sequence[str],
     relation_labels: Sequence[str],
     tickers: Sequence[str] = None,
+    extra_feature_labels: Sequence[str] | None = None,
 ) -> List[str]:
     names: List[str] = []
     relation_labels = list(relation_labels)
@@ -157,7 +159,65 @@ def build_feature_names(
         for feat_idx in range(input_dim):
             label = feature_labels[feat_idx] if feat_idx < len(feature_labels) else f"Feature_{feat_idx}"
             names.append(f"{get_ticker_name(stock_idx)}::{label}")
+    if extra_feature_labels:
+        names.extend(extra_feature_labels)
     return names
+
+
+def build_augmented_feature_labels(
+    num_stocks: int,
+    input_dim: int,
+    *,
+    tickers: Sequence[str] | None,
+    corr_label: str,
+    include_corr: bool,
+    include_ts_stats: bool,
+) -> List[str]:
+    extra: List[str] = []
+
+    def get_name(idx: int) -> str:
+        if tickers and idx < len(tickers):
+            return str(tickers[idx])
+        return f"Stock[{idx}]"
+
+    if include_corr:
+        for i in range(num_stocks):
+            name_i = get_name(i)
+            for j in range(num_stocks):
+                name_j = get_name(j)
+                extra.append(f"{corr_label}[{name_i},{name_j}]")
+
+    if include_ts_stats:
+        stat_labels = ("TSMean", "TSStd")
+        for stat in stat_labels:
+            for stock_idx in range(num_stocks):
+                stock_name = get_name(stock_idx)
+                for feat_idx in range(input_dim):
+                    extra.append(f"{stock_name}::{stat}_{feat_idx}")
+
+    return extra
+
+
+def _extract_augmented_features(env: StockPortfolioEnv, args: argparse.Namespace) -> np.ndarray | None:
+    extras: List[np.ndarray] = []
+    step = getattr(env, "current_step", 0)
+
+    if args.augment_corr and getattr(env, "corr_tensor", None) is not None:
+        corr_slice = env.corr_tensor[step]
+        extras.append(_to_numpy(corr_slice).reshape(-1))
+
+    if args.augment_ts_stats and getattr(env, "ts_features_tensor", None) is not None:
+        ts_slice = _to_numpy(env.ts_features_tensor[step])
+        if ts_slice.ndim >= 3:
+            # Expect [num_stocks, lookback, features]
+            ts_mean = np.nan_to_num(ts_slice.mean(axis=1))
+            ts_std = np.nan_to_num(ts_slice.std(axis=1))
+            extras.append(ts_mean.reshape(-1))
+            extras.append(ts_std.reshape(-1))
+
+    if not extras:
+        return None
+    return np.concatenate(extras, axis=0)
 
 
 def softmax(x: np.ndarray) -> np.ndarray:
@@ -209,6 +269,10 @@ def collect_trajectories(
             else:
                 obs_sample = np.asarray(obs).reshape(-1).copy()
 
+            extra_features = _extract_augmented_features(env, args)
+            if extra_features is not None:
+                obs_sample = np.concatenate([obs_sample, extra_features], axis=0)
+
             observations.append(obs_sample)
             weights.append(softmax(np.asarray(action).reshape(-1)))
 
@@ -249,6 +313,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ind-label", default="Industry", help="Label for industry relation matrix")
     parser.add_argument("--pos-label", default="Momentum", help="Label for positive relation matrix")
     parser.add_argument("--neg-label", default="Reversal", help="Label for negative relation matrix")
+    parser.add_argument("--corr-label", default="Corr", help="Label for flattened correlation features")
     parser.add_argument("--ind-yn", action="store_true", help="Enable industry relation")
     parser.add_argument("--no-ind-yn", dest="ind_yn", action="store_false")
     parser.set_defaults(ind_yn=True)
@@ -258,6 +323,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--neg-yn", action="store_true", help="Enable negative relation")
     parser.add_argument("--no-neg-yn", dest="neg_yn", action="store_false")
     parser.set_defaults(neg_yn=True)
+    parser.add_argument("--augment-corr", dest="augment_corr", action="store_true", help="Append corr matrix to surrogate inputs")
+    parser.add_argument("--no-augment-corr", dest="augment_corr", action="store_false")
+    parser.set_defaults(augment_corr=True)
+    parser.add_argument("--augment-ts-stats", dest="augment_ts_stats", action="store_true", help="Append per-stock time-series stats")
+    parser.add_argument("--no-augment-ts-stats", dest="augment_ts_stats", action="store_false")
+    parser.set_defaults(augment_ts_stats=True)
     parser.add_argument("--save-joblib", action="store_true", help="Persist fitted trees via joblib (enabled by default)")
     parser.add_argument("--no-save-joblib", dest="save_joblib", action="store_false", help="Disable joblib persistence")
     parser.set_defaults(save_joblib=True)
@@ -269,6 +340,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--tickers-csv",
         default="tickers.csv",
         help="CSV containing a 'ticker' column to map stock indices to symbols (defaults to repo tickers.csv)",
+    )
+    parser.add_argument(
+        "--focus-log-csv",
+        default=None,
+        help="Optional CSV (same format as monthly log) to specify snapshot holdings",
+    )
+    parser.add_argument(
+        "--focus-date",
+        default=None,
+        help="Snapshot date (YYYY-MM-DD) whose holdings should be prioritized",
+    )
+    parser.add_argument(
+        "--focus-run-id",
+        default=None,
+        help="Optional run_id filter for focus log",
     )
     return parser.parse_args(argv)
 
@@ -332,6 +418,63 @@ def _ticker_for_index(index: int, tickers_info: Dict[str, object]) -> str:
     return f"Stock_{index}"
 
 
+def _resolve_path(path_str: str) -> Path:
+    candidate = Path(path_str).expanduser()
+    if candidate.exists():
+        return candidate
+    alt = (REPO_ROOT / path_str).expanduser()
+    return alt if alt.exists() else candidate
+
+
+def _focus_tickers_from_log(
+    csv_path: str | None,
+    focus_date: str | None,
+    *,
+    top_k: int,
+    run_id: str | None = None,
+) -> List[str]:
+    if not csv_path or not focus_date:
+        return []
+    resolved = _resolve_path(csv_path)
+    if not resolved.exists():
+        print(f"[WARN] focus log CSV not found at {resolved}. Falling back to avg weights.")
+        return []
+    try:
+        df = pd.read_csv(resolved)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[WARN] Failed to read focus log CSV {resolved}: {exc}. Falling back to avg weights.")
+        return []
+
+    df.columns = [str(col).strip().lower() for col in df.columns]
+    if run_id and "run_id" in df.columns:
+        df = df[df["run_id"] == run_id]
+    if df.empty:
+        print("[WARN] focus log CSV is empty after run_id filter.")
+        return []
+    date_cols = [col for col in ("as_of", "date") if col in df.columns]
+    if not date_cols:
+        print("[WARN] focus log CSV missing 'as_of' or 'date' column.")
+        return []
+    target = pd.to_datetime(focus_date).date()
+    filtered = None
+    for col in date_cols:
+        series = pd.to_datetime(df[col], errors="coerce")
+        mask = series.dt.date == target
+        if mask.any():
+            filtered = df[mask].copy()
+            filtered["as_of"] = series[mask].dt.strftime("%Y-%m-%d")
+            break
+    if filtered is None or filtered.empty:
+        print(f"[WARN] No rows found in focus log for date {focus_date}.")
+        return []
+    if "weight" not in filtered.columns:
+        print("[WARN] focus log CSV missing 'weight' column.")
+        return []
+    filtered = filtered.sort_values("weight", ascending=False).head(top_k)
+    focus_symbols = [str(val).strip().upper() for val in filtered.get("ticker", []) if str(val).strip()]
+    return focus_symbols
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
     metadata = auto_detect_metadata(args)
@@ -390,19 +533,50 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     # Build feature names with ticker mapping
     tickers_list = tickers.get("tickers") if tickers else None
+    extra_feature_labels = build_augmented_feature_labels(
+        args.num_stocks,
+        args.input_dim,
+        tickers=tickers_list,
+        corr_label=args.corr_label,
+        include_corr=args.augment_corr,
+        include_ts_stats=args.augment_ts_stats,
+    )
+
     feature_names = build_feature_names(
         args.num_stocks,
         args.input_dim,
         feature_labels,
         relation_labels,
-        tickers=tickers_list
+        tickers=tickers_list,
+        extra_feature_labels=extra_feature_labels,
     )
 
+    ticker_map = {}
+    if tickers_list:
+        ticker_map = {str(sym).strip().upper(): idx for idx, sym in enumerate(tickers_list) if str(sym).strip()}
+    focus_symbols = _focus_tickers_from_log(
+        args.focus_log_csv,
+        args.focus_date,
+        top_k=args.top_k_stocks,
+        run_id=args.focus_run_id,
+    )
+    focus_indices: List[int] = []
+    if focus_symbols and not ticker_map:
+        print("[WARN] Focus tickers supplied but ticker CSV is missing; unable to map symbols to indices.")
+    for symbol in focus_symbols:
+        idx = ticker_map.get(symbol)
+        if idx is None:
+            print(f"[WARN] Focus ticker {symbol} not found in dataset mapping; skipping.")
+            continue
+        if idx not in focus_indices:
+            focus_indices.append(idx)
+
     avg_weights = Y.mean(axis=0)
-    top_indices = np.argsort(avg_weights)[::-1][: args.top_k_stocks]
+    default_indices = np.argsort(avg_weights)[::-1][: args.top_k_stocks].tolist()
+    target_indices = focus_indices if focus_indices else default_indices
 
     per_stock_rules: Dict[int, Dict[str, object]] = {}
-    for rank, stock_idx in enumerate(top_indices, start=1):
+    for rank, stock_idx in enumerate(target_indices, start=1):
         stock_label = _ticker_for_index(stock_idx, tickers)
         tree = DecisionTreeRegressor(max_depth=args.max_depth, random_state=args.random_state)
         tree.fit(X, Y[:, stock_idx])
@@ -423,14 +597,21 @@ def main(argv: Sequence[str] | None = None) -> None:
             print(f"  - {feature_names[idx]}: {importances[idx]:.4f}")
         print("Decision rules:\n" + readable_rules)
 
+        feature_payload = [
+            {
+                "name": feature_names[idx],
+                "importance": float(importances[idx]),
+            }
+            for idx in top_features
+            if importances[idx] > 0
+        ]
         per_stock_rules[stock_idx] = {
             "ticker": stock_label,
-            "avg_weight": float(avg_weights[stock_idx]),
-            "feature_importances": {
-                feature_names[idx]: float(importances[idx]) for idx in top_features if importances[idx] > 0
-            },
+            "top_features": feature_payload,
             "rules": readable_rules,
         }
+
+    selected_tickers = [_ticker_for_index(idx, tickers) for idx in target_indices]
 
     output_dir = _ensure_dir(Path(args.output_dir).expanduser().resolve())
 
@@ -442,7 +623,8 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "per_stock": per_stock_rules,
                 "feature_names": feature_names,
                 "avg_weights": avg_weights,
-                "top_indices": top_indices,
+                "top_indices": target_indices,
+                "selected_tickers": selected_tickers,
                 "X_shape": X.shape,
                 "Y_shape": Y.shape,
                 "global_r2": fidelity,
@@ -462,9 +644,14 @@ def main(argv: Sequence[str] | None = None) -> None:
                     "num_stocks": args.num_stocks,
                     "input_dim": args.input_dim,
                     "global_r2": fidelity,
-                    "top_indices": top_indices.tolist(),
-                    "avg_weights": avg_weights[top_indices].tolist(),
-                    "top_tickers": [_ticker_for_index(idx, tickers) for idx in top_indices],
+                    "top_indices": target_indices,
+                    "avg_weights": [float(avg_weights[idx]) for idx in target_indices],
+                    "top_tickers": selected_tickers,
+                    "focus_source": {
+                        "csv": args.focus_log_csv,
+                        "date": args.focus_date,
+                        "run_id": args.focus_run_id,
+                    },
                 },
                 fh,
                 indent=2,

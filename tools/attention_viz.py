@@ -177,7 +177,10 @@ def collect_attention(
             obs_tensor, _ = model.policy.obs_to_tensor(obs)
             with torch.no_grad():
                 features_tensor = model.policy.extract_features(obs_tensor.to(device))
-                logits, attn = model.policy.mlp_extractor.policy_net(features_tensor, require_weights=True)
+                logits, attn = _call_policy_with_attention(
+                    model.policy.mlp_extractor.policy_net,
+                    features_tensor,
+                )
             
             # Validate that attention weights were returned
             if attn is None:
@@ -227,6 +230,24 @@ def collect_attention(
         "allocations": stack_or_empty(allocation_history, 2),
         "component_labels": np.asarray(component_labels),
     }
+
+
+    def _call_policy_with_attention(policy_net, features_tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor] | None]:
+        """Handle legacy checkpoints that return logits only.
+
+        Some earlier HGAT checkpoints ignore the ``require_weights`` flag and only
+        return logits. We detect this condition and fall back to a ``None``
+        attention payload so the caller can raise a friendly error.
+        """
+
+        output = policy_net(features_tensor, require_weights=True)
+        if isinstance(output, tuple):
+            if len(output) >= 2:
+                return output[0], output[1]
+            if len(output) == 1:
+                return output[0], None
+            raise RuntimeError("policy_net returned an empty tuple; cannot proceed")
+        return output, None
 
 
 def summarise_attention(attention: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
