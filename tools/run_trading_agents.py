@@ -43,6 +43,29 @@ from tradingagents.news_agent import NewsWeightReviewAgent
 console = Console()
 
 
+def _filter_target_date(df: pd.DataFrame, target_date: str) -> pd.DataFrame:
+    """Keep only rows matching the requested as_of/date value."""
+
+    try:
+        target = pd.to_datetime(target_date).date()
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"Invalid target date '{target_date}': {exc}") from exc
+
+    candidate_cols = [col for col in ("as_of", "date") if col in df.columns]
+    if not candidate_cols:
+        raise ValueError("--target-date provided but no 'as_of' or 'date' column exists in the input")
+
+    for col in candidate_cols:
+        series = pd.to_datetime(df[col], errors="coerce")
+        mask = series.dt.date == target
+        if mask.any():
+            filtered = df[mask].copy()
+            filtered["as_of"] = series[mask].dt.strftime("%Y-%m-%d")
+            return filtered
+
+    raise ValueError(f"No rows found for target date {target_date}")
+
+
 # ---------------------------------------------------------------------
 # 📦 Monthly Log Helpers
 # ---------------------------------------------------------------------
@@ -131,6 +154,11 @@ def parse_args():
         "--monthly-run-id",
         default=None,
         help="Optional run_id filter for --monthly-log-csv (defaults to all run_ids present).",
+    )
+    p.add_argument(
+        "--target-date",
+        default=None,
+        help="Process only the snapshot for this YYYY-MM-DD date (requires as_of/date column).",
     )
     p.add_argument(
         "--trading-agent-root",
@@ -252,6 +280,8 @@ def main():
 
     df = _load_allocations()
     df.columns = [str(col).strip().lower() for col in df.columns]
+    if args.target_date:
+        df = _filter_target_date(df, args.target_date)
     if "ticker" not in df.columns or "weight" not in df.columns:
         console.print("[red]❌ CSV must include columns 'ticker' and 'weight'[/red]")
         sys.exit(1)
