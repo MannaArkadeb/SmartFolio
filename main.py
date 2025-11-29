@@ -393,6 +393,10 @@ if __name__ == '__main__':
                         help="Minimum number of daily files required to keep a discovered month window")
     parser.add_argument("--expert_cache_path", default=None,
                         help="Optional path to cache expert trajectories for reuse")
+    parser.add_argument("--num_expert_trajectories", type=int, default=100,
+                        help="Number of expert trajectories to generate for IRL pretraining")
+    parser.add_argument("--max_epochs", type=int, default=1, help="Number of IRL+RL epochs to run")
+    parser.add_argument("--batch_size", type=int, default=32, help="Training batch size for loaders and IRL")
     parser.add_argument("--finrag_weights_path", default=None,
                         help="Path to FinRAG weights JSON used to initialize the policy prior")
     # Training hyperparameters
