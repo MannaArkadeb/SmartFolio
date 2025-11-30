@@ -27,6 +27,7 @@ from trainer.irl_trainer import process_data
 from gen_data import update_monthly_dataset
 
 
+
 def parse_args():
     ap = argparse.ArgumentParser(description="Run PPO inference and save weights/metrics.")
     ap.add_argument("--model-path", required=True, help="Path to PPO checkpoint (.zip)")
@@ -100,16 +101,26 @@ def main():
 
     records = []
     all_weights_data = []
+    portfolio_value_data = []
 
     for batch_idx, data in enumerate(test_loader):
         corr, ts_features, features, ind, pos, neg, labels, pyg_data, mask = process_data(data, device=device)
+    
+    # FIX: Extract actual input_dim from ts_features shape
+        if len(ts_features.shape) == 4:
+            actual_input_dim = ts_features.shape[-1]
+        elif len(ts_features.shape) == 3:
+            actual_input_dim = ts_features.shape[-1]
+        else:
+            actual_input_dim = features.shape[-1]
+    
         args_stub = argparse.Namespace(
             risk_score=args.risk_score,
             ind_yn=args.ind_yn,
             pos_yn=args.pos_yn,
             neg_yn=args.neg_yn,
             lookback=args.lookback,
-            input_dim=features.shape[-1],
+            input_dim=actual_input_dim,  
         )
         env_test = StockPortfolioEnv(
             args=args_stub,
@@ -145,6 +156,10 @@ def main():
             metrics_record.update({f"benchmark_{k}": v for k, v in benchmark_metrics.items()})
         records.append(metrics_record)
 
+        # Extract portfolio value history
+        net_value_history = env_test.get_net_value_history()
+        daily_returns_history = env_test.get_daily_returns_history()
+        
         weights_array = env_test.get_weights_history()
         if weights_array.size > 0:
             num_steps, num_stocks = weights_array.shape
@@ -152,6 +167,11 @@ def main():
             for step_idx in range(num_steps):
                 weights = weights_array[step_idx]
                 step_value = step_labels[step_idx] if step_idx < len(step_labels) else step_idx
+                
+                # Get portfolio value at this step
+                portfolio_value = float(net_value_history[step_idx]) if step_idx < len(net_value_history) else None
+                daily_return = float(daily_returns_history[step_idx]) if step_idx < len(daily_returns_history) else None
+                
                 for idx, weight in enumerate(weights):
                     if weight > 0.0001:
                         all_weights_data.append({
@@ -162,17 +182,40 @@ def main():
                             "ticker": f"stock_{idx}",
                             "weight": float(weight),
                             "weight_pct": float(weight * 100),
+                            "portfolio_value": portfolio_value,
+                            "daily_return": daily_return,
                         })
+                
+                # Store portfolio value separately
+                portfolio_value_data.append({
+                    "run_id": f"cli_run_{batch_idx}",
+                    "batch": batch_idx,
+                    "step": step_value,
+                    "portfolio_value": portfolio_value,
+                    "daily_return": daily_return,
+                })
 
     out_dir = Path(args.output_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save weights with portfolio values
     weights_csv = out_dir / f"weights_{args.market}_{args.test_start_date}_{args.test_end_date}.csv"
     if all_weights_data:
         pd.DataFrame(all_weights_data).to_csv(weights_csv, index=False)
         print(f"Saved weights to {weights_csv}")
     else:
         print("No weights captured.")
-
+    
+    # Save portfolio values
+    portfolio_csv = out_dir / f"portfolio_values_{args.market}_{args.test_start_date}_{args.test_end_date}.csv"
+    if portfolio_value_data:
+        pd.DataFrame(portfolio_value_data).to_csv(portfolio_csv, index=False)
+        print(f"Saved portfolio values to {portfolio_csv}")
+    
+    print("\n=== INFERENCE SUMMARY ===")
+    print(f"Final Portfolio Value: {net_value_history[-1]:.4f}" if len(net_value_history) > 0 else "No data")
+    print(f"Peak Portfolio Value: {env_test.peak_value:.4f}")
+    print(f"Current Portfolio Value: {env_test.net_value:.4f}")
     print("Metrics:", records)
 
 

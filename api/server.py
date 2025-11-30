@@ -32,6 +32,9 @@ from tools.weights_persistence_viz import load_tickers, rank_frequency, summariz
 from main import fine_tune_month
 from utils.ticker_mapping import get_ticker_mapping_for_period
 
+import subprocess
+import sys
+
 
 class InferenceRequest(BaseModel):
     model_path: str = Field(..., description="Path to PPO checkpoint (.zip)")
@@ -48,6 +51,13 @@ class InferenceRequest(BaseModel):
     input_dim: Optional[int] = None
     risk_score: float = 0.5
     output_dir: str = "./logs/api"
+
+
+class PortfolioValuePoint(BaseModel):
+    """Single portfolio value data point."""
+    step: int
+    portfolio_value: Optional[float]
+    daily_return: Optional[float]
 
 
 class StabilityRequest(BaseModel):
@@ -91,41 +101,65 @@ def _load_test_loader(req: InferenceRequest) -> DataLoader:
 
 
 def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
+    import torch
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[SERVER] Using device: {device}", flush=True)
+    
     test_loader = _load_test_loader(req)
+    print(f"[SERVER] Loaded test loader with {len(test_loader)} batches", flush=True)
 
     model_path = Path(req.model_path).expanduser()
     if not model_path.exists():
         raise FileNotFoundError(f"Model checkpoint not found: {model_path}")
 
+    print(f"[SERVER] Loading model from {model_path}", flush=True)
     model = PPO.load(str(model_path), env=None, device=device)
+    print(f"[SERVER] Model loaded successfully", flush=True)
 
     records: List[Dict[str, Any]] = []
     all_weights_data: List[Dict[str, Any]] = []
-    allocation_path: Optional[Path] = None
-    allocation_row: Optional[pd.DataFrame] = None
-    ticker_map: Dict[str, List[str]] = get_ticker_mapping_for_period(
-        req.market, req.test_start_date, req.test_end_date, base_dir="dataset_default"
-    )
+    portfolio_value_data: List[Dict[str, Any]] = []
+    
+    final_net_value: Optional[float] = None
+    peak_value: Optional[float] = None
+    current_value: Optional[float] = None
 
+    print(f"[SERVER] Starting inference loop", flush=True)
+    
     for batch_idx, data in enumerate(test_loader):
+        print(f"[SERVER] Processing batch {batch_idx}", flush=True)
+        sys.stdout.flush()
+        
         corr, ts_features, features, ind, pos, neg, labels, pyg_data, mask = process_data(data, device=device)
+        
+        print(f"[SERVER] Data processed. ts_features shape: {ts_features.shape if ts_features is not None else 'None'}", flush=True)
+        
+        # Extract actual input_dim from ts_features shape
+        if ts_features is not None:
+            if len(ts_features.shape) == 4:
+                actual_input_dim = ts_features.shape[-1]
+            elif len(ts_features.shape) == 3:
+                actual_input_dim = ts_features.shape[-1]
+            else:
+                actual_input_dim = features.shape[-1]
+        else:
+            actual_input_dim = features.shape[-1]
+        
+        print(f"[SERVER] actual_input_dim: {actual_input_dim}", flush=True)
+        
         args_stub = argparse.Namespace(
             risk_score=req.risk_score,
             ind_yn=req.ind_yn,
             pos_yn=req.pos_yn,
             neg_yn=req.neg_yn,
             lookback=req.lookback,
-            input_dim=req.input_dim or features.shape[-1],
+            input_dim=actual_input_dim,
         )
-        benchmark_return = None
-        idx_path = Path(f"./dataset_default/index_data/{req.market}_index.csv")
-        if idx_path.exists():
-            df_idx = pd.read_csv(idx_path)
-            df_idx = df_idx[(df_idx["datetime"] >= req.test_start_date) & (df_idx["datetime"] <= req.test_end_date)]
-            if not df_idx.empty and "daily_return" in df_idx.columns:
-                benchmark_return = df_idx["daily_return"].reset_index(drop=True)
-
+        
+        print(f"[SERVER] Creating StockPortfolioEnv...", flush=True)
+        sys.stdout.flush()
+        
         env_test = StockPortfolioEnv(
             args=args_stub,
             corr=corr,
@@ -136,7 +170,7 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
             neg=neg,
             returns=labels,
             pyg_data=pyg_data,
-            benchmark_return=benchmark_return,
+            benchmark_return=None,
             mode="test",
             ind_yn=req.ind_yn,
             pos_yn=req.pos_yn,
@@ -144,21 +178,38 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
             risk_profile={"risk_score": req.risk_score},
         )
 
+        print(f"[SERVER] Environment created successfully", flush=True)
+        
         obs_test = env_test.reset()
+        print(f"[SERVER] Environment reset. obs shape: {obs_test.shape}", flush=True)
+        
         max_step = len(labels)
+        print(f"[SERVER] Running {max_step} inference steps", flush=True)
 
-        for _ in range(max_step):
+        for step in range(max_step):
             action, _states = model.predict(obs_test, deterministic=req.deterministic)
             obs_test, reward, done, info = env_test.step(action)
+            if step % 10 == 0:
+                print(f"[SERVER]   Step {step}/{max_step}", flush=True)
             if done:
+                print(f"[SERVER]   Done at step {step}", flush=True)
                 break
 
+        print(f"[SERVER] Inference complete for batch {batch_idx}", flush=True)
+        
         metrics, benchmark_metrics = env_test.evaluate()
         metrics_record = {"batch": batch_idx}
         metrics_record.update(metrics)
         if benchmark_metrics:
             metrics_record.update({f"benchmark_{k}": v for k, v in benchmark_metrics.items()})
         records.append(metrics_record)
+
+        net_value_history = env_test.get_net_value_history()
+        daily_returns_history = env_test.get_daily_returns_history()
+        
+        final_net_value = float(net_value_history[-1]) if len(net_value_history) > 0 else None
+        peak_value = float(env_test.peak_value)
+        current_value = float(env_test.net_value)
 
         weights_array = env_test.get_weights_history()
         if weights_array.size > 0:
@@ -167,6 +218,10 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
             for step_idx in range(num_steps):
                 weights = weights_array[step_idx]
                 step_value = step_labels[step_idx] if step_idx < len(step_labels) else step_idx
+                
+                portfolio_value = float(net_value_history[step_idx]) if step_idx < len(net_value_history) else None
+                daily_return = float(daily_returns_history[step_idx]) if step_idx < len(daily_returns_history) else None
+                
                 for idx, weight in enumerate(weights):
                     if weight > 0.0001:
                         all_weights_data.append({
@@ -177,51 +232,48 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
                             "ticker": f"stock_{idx}",
                             "weight": float(weight),
                             "weight_pct": float(weight * 100),
+                            "portfolio_value": portfolio_value,
+                            "daily_return": daily_return,
                         })
-            final_weights = weights_array[-1]
-            tickers = None
-            if ticker_map:
-                date_keys = list(ticker_map.keys())
-                if date_keys:
-                    last_date = sorted(date_keys)[-1]
-                    candidate = ticker_map.get(last_date)
-                    if candidate and len(candidate) == len(final_weights):
-                        tickers = candidate
-            if tickers is None:
-                tickers = [f"stock_{i}" for i in range(len(final_weights))]
-            allocation_row = pd.DataFrame(
-                {
-                    "ticker": tickers,
-                    "weight": final_weights,
-                    "weight_pct": final_weights * 100.0,
-                    "valid_from": req.test_end_date,
-                    "valid_through": None,
-                    "risk_score": req.risk_score,
-                }
-            )
-        else:
-            continue
-        break
+                
+                portfolio_value_data.append({
+                    "run_id": f"api_run_{batch_idx}",
+                    "batch": batch_idx,
+                    "step": step_value,
+                    "portfolio_value": portfolio_value,
+                    "daily_return": daily_return,
+                })
 
     out_dir = Path(req.output_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
+    
     weights_csv = out_dir / f"weights_{req.market}_{req.test_start_date}_{req.test_end_date}.csv"
     if all_weights_data:
         pd.DataFrame(all_weights_data).to_csv(weights_csv, index=False)
-    allocation_csv = None
-    allocation_map: Optional[Dict[str, float]] = None
-    if allocation_row is not None:
-        allocation_path = out_dir / f"allocation_{req.market}_{req.test_end_date}.csv"
-        allocation_row.to_csv(allocation_path, index=False)
-        allocation_csv = str(allocation_path)
-        allocation_map = dict(zip(allocation_row["ticker"], allocation_row["weight"]))
+    
+    portfolio_csv = out_dir / f"portfolio_values_{req.market}_{req.test_start_date}_{req.test_end_date}.csv"
+    if portfolio_value_data:
+        pd.DataFrame(portfolio_value_data).to_csv(portfolio_csv, index=False)
+
+    portfolio_summary = [
+        PortfolioValuePoint(
+            step=int(pv["step"]),
+            portfolio_value=pv["portfolio_value"],
+            daily_return=pv["daily_return"]
+        )
+        for pv in portfolio_value_data
+    ]
 
     return {
         "metrics": records,
         "weights_csv": str(weights_csv) if all_weights_data else None,
-        "allocation_csv": allocation_csv,
-        "allocation": allocation_map,
+        "portfolio_values_csv": str(portfolio_csv) if portfolio_value_data else None,
+        "portfolio_values_summary": portfolio_summary,
+        "final_portfolio_value": final_net_value,
+        "peak_value": peak_value,
+        "current_value": current_value,
     }
+
 
 
 def _stability_metrics(req: StabilityRequest) -> Dict[str, Any]:
