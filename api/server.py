@@ -50,6 +50,13 @@ class InferenceRequest(BaseModel):
     output_dir: str = "./logs/api"
 
 
+class PortfolioValuePoint(BaseModel):
+    """Single portfolio value data point."""
+    step: int
+    portfolio_value: Optional[float]
+    daily_return: Optional[float]
+
+
 class StabilityRequest(BaseModel):
     weights_csv: str = Field(..., description="Path to weights CSV saved from inference")
     tickers_csv: Optional[str] = None
@@ -102,11 +109,17 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
 
     records: List[Dict[str, Any]] = []
     all_weights_data: List[Dict[str, Any]] = []
+    portfolio_value_data: List[Dict[str, Any]] = []
     allocation_path: Optional[Path] = None
     allocation_row: Optional[pd.DataFrame] = None
     ticker_map: Dict[str, List[str]] = get_ticker_mapping_for_period(
         req.market, req.test_start_date, req.test_end_date, base_dir="dataset_default"
     )
+    
+    # Variables to track portfolio values
+    final_net_value: Optional[float] = None
+    peak_value: Optional[float] = None
+    current_value: Optional[float] = None
 
     for batch_idx, data in enumerate(test_loader):
         corr, ts_features, features, ind, pos, neg, labels, pyg_data, mask = process_data(data, device=device)
@@ -160,6 +173,15 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
             metrics_record.update({f"benchmark_{k}": v for k, v in benchmark_metrics.items()})
         records.append(metrics_record)
 
+        # Extract portfolio value history
+        net_value_history = env_test.get_net_value_history()
+        daily_returns_history = env_test.get_daily_returns_history()
+        
+        # Store portfolio metrics
+        final_net_value = float(net_value_history[-1]) if len(net_value_history) > 0 else None
+        peak_value = float(env_test.peak_value)
+        current_value = float(env_test.net_value)
+
         weights_array = env_test.get_weights_history()
         if weights_array.size > 0:
             num_steps, num_stocks = weights_array.shape
@@ -167,6 +189,11 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
             for step_idx in range(num_steps):
                 weights = weights_array[step_idx]
                 step_value = step_labels[step_idx] if step_idx < len(step_labels) else step_idx
+                
+                # Get portfolio value at this step
+                portfolio_value = float(net_value_history[step_idx]) if step_idx < len(net_value_history) else None
+                daily_return = float(daily_returns_history[step_idx]) if step_idx < len(daily_returns_history) else None
+                
                 for idx, weight in enumerate(weights):
                     if weight > 0.0001:
                         all_weights_data.append({
@@ -177,7 +204,19 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
                             "ticker": f"stock_{idx}",
                             "weight": float(weight),
                             "weight_pct": float(weight * 100),
+                            "portfolio_value": portfolio_value,
+                            "daily_return": daily_return,
                         })
+                
+                # Store portfolio value separately
+                portfolio_value_data.append({
+                    "run_id": f"api_run_{batch_idx}",
+                    "batch": batch_idx,
+                    "step": step_value,
+                    "portfolio_value": portfolio_value,
+                    "daily_return": daily_return,
+                })
+            
             final_weights = weights_array[-1]
             tickers = None
             if ticker_map:
@@ -205,9 +244,15 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
 
     out_dir = Path(req.output_dir).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
+    
     weights_csv = out_dir / f"weights_{req.market}_{req.test_start_date}_{req.test_end_date}.csv"
     if all_weights_data:
         pd.DataFrame(all_weights_data).to_csv(weights_csv, index=False)
+    
+    portfolio_csv = out_dir / f"portfolio_values_{req.market}_{req.test_start_date}_{req.test_end_date}.csv"
+    if portfolio_value_data:
+        pd.DataFrame(portfolio_value_data).to_csv(portfolio_csv, index=False)
+    
     allocation_csv = None
     allocation_map: Optional[Dict[str, float]] = None
     if allocation_row is not None:
@@ -216,11 +261,26 @@ def _run_inference(req: InferenceRequest) -> Dict[str, Any]:
         allocation_csv = str(allocation_path)
         allocation_map = dict(zip(allocation_row["ticker"], allocation_row["weight"]))
 
+    # Convert portfolio values to Pydantic models
+    portfolio_summary = [
+        PortfolioValuePoint(
+            step=int(pv["step"]),
+            portfolio_value=pv["portfolio_value"],
+            daily_return=pv["daily_return"]
+        )
+        for pv in portfolio_value_data
+    ]
+
     return {
         "metrics": records,
         "weights_csv": str(weights_csv) if all_weights_data else None,
+        "portfolio_values_csv": str(portfolio_csv) if portfolio_value_data else None,
+        "portfolio_values_summary": portfolio_summary,
         "allocation_csv": allocation_csv,
         "allocation": allocation_map,
+        "final_portfolio_value": final_net_value,
+        "peak_value": peak_value,
+        "current_value": current_value,
     }
 
 

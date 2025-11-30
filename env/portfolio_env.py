@@ -339,3 +339,10 @@ class StockPortfolioEnv(gym.Env):
                     metrics["ir"] = ir
 
         return metrics, benchmark_metrics
+    def get_net_value_history(self) -> np.ndarray:
+        """Return portfolio value history as numpy array."""
+        return np.array(self.net_value_s)
+
+    def get_daily_returns_history(self) -> np.ndarray:
+        """Return daily returns history as numpy array."""
+        return np.array(self.daily_return_s)
