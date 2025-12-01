@@ -211,6 +211,8 @@ def run_explain_tree_module(cfg: OrchestratorConfig, start_date: str, end_date: 
         "--tickers-csv",
         "tickers.csv",
     ]
+    # Ensure explain_tree respects the orchestrator lookback via an explicit cap
+    argv.extend(["--max-steps", str(cfg.lookback_days)])
     if cfg.monthly_run_id:
         argv.extend(["--focus-run-id", cfg.monthly_run_id])
     try:
