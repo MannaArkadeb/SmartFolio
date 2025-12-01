@@ -52,6 +52,7 @@ class DatasetMetadata:
     data_dir: Path
     num_stocks: int
     input_dim: int
+    lookback: int
 
 
 def _to_numpy(value):
@@ -66,7 +67,7 @@ def _ensure_dir(path: Path) -> Path:
 
 
 def auto_detect_metadata(args: argparse.Namespace) -> DatasetMetadata:
-    """Infer dataset directory, number of stocks, and feature dimension."""
+    """Infer dataset directory together with stock/feature/temporal dimensions."""
     base_dir = Path(args.data_root).expanduser().resolve()
     data_dir = base_dir / f"data_train_predict_{args.market}" / f"{args.horizon}_{args.relation_type}"
     if not data_dir.is_dir():
@@ -104,7 +105,41 @@ def auto_detect_metadata(args: argparse.Namespace) -> DatasetMetadata:
             if num_stocks <= 0 or input_dim <= 0:
                 raise ValueError(f"invalid feature dimensions: num_stocks={num_stocks}, input_dim={input_dim}")
 
-            return DatasetMetadata(data_dir=data_dir, num_stocks=num_stocks, input_dim=input_dim)
+            ts_features = sample.get("ts_features")
+            if ts_features is None:
+                raise KeyError("missing 'ts_features'")
+
+            if isinstance(ts_features, torch.Tensor):
+                ts_shape = tuple(ts_features.shape)
+                if ts_features.numel() == 0:
+                    raise ValueError("ts_features tensor is empty")
+            else:
+                ts_np = np.asarray(ts_features)
+                if ts_np.size == 0:
+                    raise ValueError("ts_features array is empty")
+                ts_shape = ts_np.shape
+
+            if len(ts_shape) < 3:
+                raise ValueError(f"ts_features tensor has shape {ts_shape}; expected >=3 dimensions")
+
+            ts_num_stocks = ts_shape[-3] if len(ts_shape) >= 3 else ts_shape[0]
+            lookback = ts_shape[-2]
+            ts_feat_dim = ts_shape[-1]
+
+            if ts_num_stocks != num_stocks or ts_feat_dim != input_dim:
+                raise ValueError(
+                    "ts_features dimensions do not align with feature tensor; "
+                    f"expected ({num_stocks}, *, {input_dim}) got {ts_shape}"
+                )
+            if lookback <= 0:
+                raise ValueError("lookback inferred from ts_features must be positive")
+
+            return DatasetMetadata(
+                data_dir=data_dir,
+                num_stocks=num_stocks,
+                input_dim=input_dim,
+                lookback=lookback,
+            )
         except Exception as exc:  # noqa: PERF203
             last_error = exc
             continue
@@ -138,9 +173,11 @@ def process_data(batch: Dict[str, torch.Tensor], device: torch.device) -> Tuple[
 def build_feature_names(
     num_stocks: int,
     input_dim: int,
+    lookback: int,
     feature_labels: Sequence[str],
     relation_labels: Sequence[str],
     tickers: Sequence[str] = None,
+    include_prev_weights: bool = True,
     extra_feature_labels: Sequence[str] | None = None,
 ) -> List[str]:
     names: List[str] = []
@@ -155,10 +192,19 @@ def build_feature_names(
         for i in range(num_stocks):
             for j in range(num_stocks):
                 names.append(f"{relation}[{get_ticker_name(i)},{get_ticker_name(j)}]")
+    lookback = max(1, int(lookback))
     for stock_idx in range(num_stocks):
-        for feat_idx in range(input_dim):
-            label = feature_labels[feat_idx] if feat_idx < len(feature_labels) else f"Feature_{feat_idx}"
-            names.append(f"{get_ticker_name(stock_idx)}::{label}")
+        stock_label = get_ticker_name(stock_idx)
+        for lag in range(lookback):
+            # Lag index 0 is the oldest observation, so translate to a t-N style name
+            history_offset = (lookback - 1) - lag
+            suffix = "t-0" if history_offset == 0 else f"t-{history_offset}"
+            for feat_idx in range(input_dim):
+                label = feature_labels[feat_idx] if feat_idx < len(feature_labels) else f"Feature_{feat_idx}"
+                names.append(f"{stock_label}::{suffix}::{label}")
+    if include_prev_weights:
+        for stock_idx in range(num_stocks):
+            names.append(f"{get_ticker_name(stock_idx)}::PrevWeight")
     if extra_feature_labels:
         names.extend(extra_feature_labels)
     return names
@@ -262,6 +308,18 @@ def collect_trajectories(
         vec_env.reset()
 
         max_steps = returns.shape[0] if hasattr(returns, "shape") else len(returns)
+        # Allow an explicit cap on the number of timesteps processed. This protects
+        # against accidentally loading the entire dataset when date slicing fails
+        # or when a smaller window is desired for quick explainability runs.
+        if getattr(args, "max_steps", None):
+            try:
+                cap = int(args.max_steps)
+                if cap > 0:
+                    max_steps = min(int(max_steps), cap)
+            except Exception:
+                # ignore invalid values and use detected max_steps
+                pass
+        print(f"Collecting trajectories: limiting to {int(max_steps)} steps (detected full={returns.shape[0] if hasattr(returns,'shape') else len(returns)})")
         for step in range(int(max_steps)):
             action, _ = model.predict(obs, deterministic=args.deterministic)
             if isinstance(obs, np.ndarray) and obs.ndim == 2 and obs.shape[0] == 1:
@@ -355,6 +413,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--focus-run-id",
         default=None,
         help="Optional run_id filter for focus log",
+    )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=None,
+        help="Optional cap on the number of timesteps to collect from the test dataset (useful for quick runs)",
     )
     return parser.parse_args(argv)
 
@@ -480,6 +544,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     metadata = auto_detect_metadata(args)
     args.num_stocks = metadata.num_stocks
     args.input_dim = metadata.input_dim
+    args.lookback = int(getattr(metadata, "lookback", 0) or 0)
+    if args.lookback <= 0:
+        raise ValueError("Failed to infer a positive lookback window from dataset metadata")
 
     if args.feature_names:
         feature_labels = [name.strip() for name in args.feature_names.split(",") if name.strip()]
@@ -504,6 +571,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     print(f"  Market         : {args.market}")
     print(f"  Num stocks     : {args.num_stocks}")
     print(f"  Feature dim    : {args.input_dim}")
+    print(f"  Lookback       : {args.lookback}")
     if tickers:
         print(f"  Tickers CSV    : {tickers['source']}")
     print(f"  Test range     : {args.test_start_date} to {args.test_end_date}")
@@ -517,6 +585,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     if len(test_dataset) == 0:
         raise RuntimeError("Test dataset is empty for the specified date range")
+    resolved_span = getattr(test_dataset, "gnames_all", [])
+    if resolved_span:
+        print(
+            f"Resolved test slice: {resolved_span[0]} → {resolved_span[-1]} "
+            f"({len(resolved_span)} files)"
+        )
 
     test_loader = DataLoader(test_dataset, batch_size=len(test_dataset), pin_memory=True)
 
@@ -545,6 +619,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     feature_names = build_feature_names(
         args.num_stocks,
         args.input_dim,
+        args.lookback,
         feature_labels,
         relation_labels,
         tickers=tickers_list,
