@@ -31,7 +31,6 @@ FEATURE_COLS_NORM = [f"{c}_normalized" for c in FEATURE_COLS]
 DATASET_DEFAULT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset_default"))
 DATASET_CORR_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset_default", "corr"))
 
-
 def fetch_ohlcv_yf(tickers: List[str], start: str, end: str) -> pd.DataFrame:
     """Download OHLCV from yfinance and return tall dataframe with required columns.
 
@@ -292,7 +291,7 @@ def save_daily_graph(dt: str,
                      horizon: int,
                      relation_type: str,
                      lookback: int = 20,
-                     threshold: float = 0.2,
+                     threshold: float = 0.5,
                      norm: bool = True,
                      industry_mat: Optional[np.ndarray] = None):
     """Construct and save one day's pickle in the format loaders expect, under dataset_default.
@@ -424,7 +423,7 @@ def main():
     parser.add_argument("--horizon", type=int, default=1)
     parser.add_argument("--relation_type", default="hy")
     parser.add_argument("--lookback", type=int, default=20)
-    parser.add_argument("--threshold", type=float, default=0.2)
+    parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--norm", dest="norm", action="store_true", help="Use normalized features (default)")
     parser.add_argument("--no-norm", dest="norm", action="store_false", help="Disable feature normalization")
     parser.set_defaults(norm=True)
@@ -453,6 +452,7 @@ def main():
     org_out = os.path.join(DATASET_DEFAULT_ROOT, f"{args.market}_org.csv")
     os.makedirs(DATASET_DEFAULT_ROOT, exist_ok=True)
     df_raw.to_csv(org_out, index=False)
+    df_raw.to_parquet(os.path.join(DATASET_DEFAULT_ROOT, f"{args.market}_latest.parquet"), index=False)
 
     # --- Create an index CSV (equal-weighted average daily return) for model_predict ---
     # model_predict expects ./dataset_default/index_data/{market}_index_2024.csv with columns ['datetime','daily_return']

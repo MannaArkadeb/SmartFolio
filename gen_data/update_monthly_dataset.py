@@ -85,13 +85,12 @@ def _dump_manifest(path: str, manifest: Mapping[str, object]) -> None:
         json.dump(manifest, f, indent=2, sort_keys=True)
 
 
-def _find_latest_raw_snapshot(root: str, market: str) -> str:
-    """Return the newest parquet/pickle snapshot under ``root`` for ``market``."""
+def _find_latest_raw_snapshot(root: str) -> str:
+    """Locate the latest parquet or pickle snapshot under dataset_default."""
 
     candidates: List[Tuple[float, str]] = []
 
-    raw_dir = os.path.join(root, "raw", market)
-    search_dirs = [raw_dir, root]
+    search_dirs = [root]
     for directory in search_dirs:
         if not os.path.isdir(directory):
             continue
@@ -112,8 +111,7 @@ def _find_latest_raw_snapshot(root: str, market: str) -> str:
                     csv_candidates.append(os.path.join(directory, fname))
         if not csv_candidates:
             raise FileNotFoundError(
-                "Unable to locate a parquet/pickle snapshot under dataset_default for market "
-                f"'{market}'. Pass --raw-path explicitly if the snapshot lives elsewhere."
+                "Unable to locate a parquet/pickle snapshot under dataset_default."
             )
         csv_candidates.sort()
         csv_path = csv_candidates[-1]
@@ -205,7 +203,7 @@ def _build_daily_sample(
     corr_csv: str,
     threshold: float,
     norm: bool = True,
-    industry_mat: Optional[np.ndarray] = None
+    industry_matrix: Optional[np.ndarray] = None
 ) -> Optional[Dict[str, torch.Tensor]]:
     """Construct a single day's sample mirroring ``save_daily_graph``."""
 
@@ -231,9 +229,6 @@ def _build_daily_sample(
     corr = torch.from_numpy(corr_df.values.astype(np.float32))
     pos = torch.from_numpy(pos_adj.astype(np.float32))
     neg = torch.from_numpy(neg_adj.astype(np.float32))
-    if industry_mat is None:
-            industry_mat = np.eye(len(codes), dtype=np.float32)
-    ind = torch.from_numpy(industry_mat.astype(np.float32))
 
     ts_features: List[np.ndarray] = []
     features: List[np.ndarray] = []
@@ -262,9 +257,9 @@ def _build_daily_sample(
     ts_tensor = torch.from_numpy(np.stack(ts_features, axis=0)).float()
     feat_tensor = torch.from_numpy(np.stack(features, axis=0)).float()
     label_tensor = torch.tensor(labels, dtype=torch.float32)
-
+    ind = industry_matrix if industry_matrix is not None else np.zeros((len(codes), len(codes)), dtype=np.float32)
     # Create pyg_data
-    edge_index = torch.triu_indices(ind.size(0), ind.size(0), offset=1)
+    edge_index = torch.triu_indices(ind.shape[0], ind.shape[0], offset=1)
     pyg_data = Data(x=features, edge_index=edge_index)
     pyg_data.edge_attr = ind[edge_index[0], edge_index[1]]
 
@@ -272,7 +267,7 @@ def _build_daily_sample(
         "corr": Variable(corr),
         "ts_features": Variable(ts_tensor),
         "features": Variable(feat_tensor),
-        "industry_matrix": Variable(ind),
+        "industry_matrix": Variable(torch.from_numpy(ind.astype(np.float32))),
         "pos_matrix": Variable(pos),
         "neg_matrix": Variable(neg),
         "pyg_data" : pyg_data,
@@ -323,7 +318,7 @@ def run(args: argparse.Namespace) -> None:
     manifest = cast(Dict[str, object], manifest_raw)
 
     raw_snapshot = cast(Optional[str], manifest.get("raw_snapshot"))
-    raw_path = args.raw_path or raw_snapshot or _find_latest_raw_snapshot(dataset_root, args.market)
+    raw_path = args.raw_path or raw_snapshot or _find_latest_raw_snapshot(dataset_root)
     print(f"Using raw snapshot at: {raw_path}")
     df_raw = _load_snapshot(raw_path)
 
@@ -375,6 +370,7 @@ def run(args: argparse.Namespace) -> None:
 
     payloads = []
     valid_dates = []
+    ind = np.load(os.path.join(DATASET_DEFAULT_ROOT, args.market,"industry.npy"))
     for dt in month_dates:
         sample = _build_daily_sample(
             dt=dt,
@@ -384,6 +380,7 @@ def run(args: argparse.Namespace) -> None:
             corr_csv=corr_csv,
             threshold=args.threshold,
             norm=not args.disable_norm,
+            industry_matrix=ind,
         )
         if sample is None:
             continue

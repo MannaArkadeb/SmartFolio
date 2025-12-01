@@ -264,6 +264,14 @@ class StockPortfolioEnv(gym.Env):
         df_daily_return = pd.DataFrame(self.daily_return_s)
         df_daily_return.columns = ["daily_return"]
         return df_daily_return
+    
+    def get_net_value_history(self) -> np.ndarray:
+        """Return portfolio value history as numpy array."""
+        return np.array(self.net_value_s)
+
+    def get_daily_returns_history(self) -> np.ndarray:
+        """Return daily returns history as numpy array."""
+        return np.array(self.daily_return_s)
 
     def get_weights_history(self):
         if not self.weights_history:

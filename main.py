@@ -5,6 +5,7 @@ import argparse
 import warnings
 from datetime import datetime
 import calendar
+from pathlib import Path
 import numpy as np
 warnings.filterwarnings("ignore", category=UserWarning)
 import pandas as pd
@@ -20,7 +21,115 @@ from utils.risk_profile import build_risk_profile
 from tools.pathway_temporal import discover_monthly_shards_with_pathway
 from tools.pathway_monthly_builder import build_monthly_shards_with_pathway
 
+import shutil
+import pickle
+from stable_baselines3.common.save_util import load_from_zip_file
+from trainer.ptr_ppo import PTR_PPO
+
 PATH_DATA = f'./dataset_default/'
+
+def _copy_compatible_policy_weights(policy_module, loaded_state, checkpoint_path):
+    """Load only the tensors that match by key and shape to avoid shape-mismatch crashes."""
+    if not loaded_state:
+        print(f"Warning: {checkpoint_path} did not contain policy weights; skipping weight transfer.")
+        return 0
+
+    current_state = policy_module.state_dict()
+    matched = 0
+    skipped = []
+
+    for key, tensor in loaded_state.items():
+        target_tensor = current_state.get(key)
+        if target_tensor is None:
+            continue
+        if target_tensor.shape != tensor.shape:
+            skipped.append((key, tuple(tensor.shape), tuple(target_tensor.shape)))
+            continue
+        if isinstance(tensor, torch.Tensor):
+            current_state[key] = tensor.to(target_tensor.device)
+        else:
+            current_state[key] = torch.as_tensor(tensor, device=target_tensor.device)
+        matched += 1
+
+    policy_module.load_state_dict(current_state)
+
+    if matched == 0:
+        print(f"Warning: No compatible policy weights found in {checkpoint_path}; starting from scratch.")
+    else:
+        print(f"Loaded {matched} compatible policy tensors from {checkpoint_path}.")
+
+    if skipped:
+        preview = ", ".join(f"{name}: {src}->{dst}" for name, src, dst in skipped[:5])
+        if len(skipped) > 5:
+            preview += ", ..."
+        print(
+            f"Skipped {len(skipped)} tensors from {checkpoint_path} due to shape mismatches."
+            f" Examples: {preview}"
+        )
+
+    return matched
+
+def load_weights_into_new_model(
+    path,
+    env,
+    device,
+    policy_kwargs,
+    ptr_mode=False,
+    ptr_coef=0.1,
+    prior_policy=None,
+):
+    def _extract_policy_state_dict():
+        try:
+            _, params, _ = load_from_zip_file(path, device=device)
+        except ValueError as exc:
+            print(f"Warning: load_from_zip_file failed ({exc}). Falling back to PPO.load...")
+            temp_model = PPO.load(path, env=None, device=device)
+            return temp_model.policy.state_dict()
+
+        if params is None:
+            return None
+        if isinstance(params, dict) and "policy" in params:
+            return params["policy"]
+        return params
+
+    policy_state = _extract_policy_state_dict()
+
+    model_cls = PTR_PPO if ptr_mode else PPO
+    init_kwargs = dict(
+        policy=HGATActorCriticPolicy,
+        env=env,
+        policy_kwargs=policy_kwargs,
+        device=device,
+        **PPO_PARAMS,
+    )
+    if ptr_mode:
+        init_kwargs["ptr_coef"] = ptr_coef
+        init_kwargs["prior_policy"] = prior_policy
+
+    model = model_cls(**init_kwargs)
+    _copy_compatible_policy_weights(model.policy, policy_state, path)
+    return model
+
+def _default_manifest_path(args) -> Path:
+    """Compute the canonical manifest path under dataset_default for given args."""
+    return Path(PATH_DATA) / f"data_train_predict_{args.market}" / f"{args.horizon}_{args.relation_type}" / "monthly_manifest.json"
+
+
+def _resolve_manifest_path(args, manifest_path: str | None) -> Path:
+    """
+    Resolve a manifest path, preferring an explicit existing file, otherwise the
+    canonical dataset directory location.
+    """
+    if manifest_path:
+        candidate = Path(manifest_path).expanduser()
+        if candidate.is_file():
+            return candidate
+        if not candidate.is_absolute():
+            # Try placing the provided filename inside the canonical dataset dir.
+            alt = _default_manifest_path(args).with_name(candidate.name)
+            if alt.is_file():
+                return alt
+    return _default_manifest_path(args)
 
 
 def load_finrag_prior(weights_path, num_stocks, tickers_csv="tickers.csv"):
@@ -137,10 +246,45 @@ def _infer_month_dates(shard):
 
     return month_label, month_start, month_end
 
+def select_replay_samples(model, env, dataset, k_percent=0.3):
+    """
+    Select top k% samples based on absolute reward magnitude (proxy for importance).
+    """
+    print("Selecting replay samples...")
+    obs = env.reset()
+    rewards = []
 
-def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_path=None):
+    env.reset()
+
+    real_env = env.envs[0]
+    max_steps = real_env.max_step
+    
+    step_rewards = []
+    
+    for i in range(max_steps):
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, done, info = env.step(action)
+        step_rewards.append((i, abs(reward[0]))) # Store index and abs reward
+        if done:
+            break
+            
+    # Sort by absolute reward descending
+    step_rewards.sort(key=lambda x: x[1], reverse=True)
+    
+    # Select top k
+    num_to_select = int(len(step_rewards) * k_percent)
+    selected_indices = [x[0] for x in step_rewards[:num_to_select]]
+    
+    # Retrieve data objects from dataset
+    # dataset.data_all is the list
+    selected_samples = [dataset.data_all[i] for i in selected_indices if i < len(dataset.data_all)]
+    
+    print(f"Selected {len(selected_samples)} replay samples from {len(dataset)} total.")
+    return selected_samples
+
+def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_path=None, replay_buffer=None):
     """Fine-tune the PPO model on the latest unprocessed monthly shard."""
-    manifest_file = manifest_path
+    manifest_file = str(_resolve_manifest_path(args, manifest_path))
     if not os.path.exists(manifest_file):
         # Attempt to build manifest: first via Pathway, then via monthly dataset updater
         built = False
@@ -235,6 +379,15 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         # Assume it's already a list of shard dicts
         shards_list = list(shards)
 
+    target_month_label = getattr(args, "fine_tune_month", None)
+    start_month_label = getattr(args, "fine_tune_start_month", None)
+    start_month_dt = None
+    if start_month_label:
+        try:
+            start_month_dt = datetime.strptime(start_month_label, "%Y-%m")
+        except ValueError as exc:
+            raise ValueError("--fine_tune_start_month must follow YYYY-MM format") from exc
+
     unprocessed = []
     for idx, shard in enumerate(shards_list):
         if shard.get("processed", False):
@@ -247,6 +400,8 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         unprocessed.append((idx, shard, month_label, month_start, month_end))
 
     if not unprocessed:
+        if target_month_label:
+            raise RuntimeError(f"Target month {target_month_label} was not found or already processed.")
         raise RuntimeError("No unprocessed monthly shards available for fine-tuning")
 
     # Pick the most recent month
@@ -277,6 +432,10 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
     if len(monthly_dataset) == 0:
         raise ValueError(f"Monthly dataset for {month_label} is empty (start={month_start}, end={month_end})")
 
+    if replay_buffer:
+        print(f"Injecting {len(replay_buffer)} samples from replay buffer into training data.")
+        monthly_dataset.data_all.extend(replay_buffer)
+
     monthly_loader = DataLoader(
         monthly_dataset,
         batch_size=len(monthly_dataset),
@@ -287,9 +446,21 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
 
     env_init = create_env_init(args, data_loader=monthly_loader)
 
+    previous_checkpoint = None
+    # Find the strictly previous processed shard's checkpoint
+    for prev_idx in range(shard_idx - 1, -1, -1):
+        prev_shard = shards_list[prev_idx]
+        prev_path = prev_shard.get("checkpoint_path") or prev_shard.get("checkpoint")
+        if prev_shard.get("processed") and prev_path and os.path.exists(prev_path):
+            previous_checkpoint = prev_path
+            break
+
+    manifest_last_ckpt = manifest.get("last_checkpoint_path")
     checkpoint_candidates = [
         shard.get("checkpoint"),
         shard.get("checkpoint_path"),
+        previous_checkpoint,
+        manifest_last_ckpt,
         getattr(args, "resume_model_path", None),
         getattr(args, "baseline_checkpoint", None),
     ]
@@ -300,9 +471,60 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         raise FileNotFoundError("No valid base checkpoint found for fine-tuning")
 
     print(f"Fine-tuning {checkpoint_path} on month {month_label} ({month_start} to {month_end}) for {args.fine_tune_steps} timesteps")
-    model = PPO.load(checkpoint_path, env=env_init, device=args.device)
+
+    # Determine lookback
+    lookback = getattr(env_init, 'lookback', getattr(args, 'lookback', 30))
+    if hasattr(env_init, 'envs'):
+         lookback = getattr(env_init.envs[0], 'lookback', lookback)
+    
+    policy_kwargs = dict(
+        last_layer_dim_pi=args.num_stocks,
+        last_layer_dim_vf=args.num_stocks,
+        n_head=8,
+        hidden_dim=128,
+        no_ind=(not args.ind_yn),
+        no_neg=(not args.neg_yn),
+        lookback=lookback,
+    )
+
+    if getattr(args, "ptr_mode", False):
+        print(f"Using PTR (Policy Transfer via Regularization) with coef={args.ptr_coef}")
+        # Load the "prior" (frozen old policy)
+        prior_model = load_weights_into_new_model(
+            checkpoint_path,
+            env_init,
+            args.device,
+            policy_kwargs,
+            ptr_mode=False,
+        )
+        prior_policy = prior_model.policy
+        # Load the "current" (trainable new policy)
+        model = load_weights_into_new_model(
+            checkpoint_path,
+            env_init,
+            args.device,
+            policy_kwargs,
+            ptr_mode=True,
+            ptr_coef=args.ptr_coef,
+            prior_policy=prior_policy,
+        )
+    else:
+        # Standard PPO loading
+        model = load_weights_into_new_model(
+            checkpoint_path,
+            env_init,
+            args.device,
+            policy_kwargs,
+            ptr_mode=False,
+        )
+
     model.set_env(env_init)
     model.learn(total_timesteps=getattr(args, "fine_tune_steps", 5000))
+
+    new_replay_samples = []
+    if getattr(args, "ptr_mode", False):
+        # Select high-val   ue samples from the current month to carry forward
+        new_replay_samples = select_replay_samples(model, env_init, monthly_dataset, k_percent=0.1)
 
     os.makedirs(args.save_dir, exist_ok=True)
     month_slug = month_label.replace("/", "-")
@@ -316,16 +538,23 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         "checkpoint_path": out_path,
         "processed_at": datetime.utcnow().isoformat(timespec="seconds"),
     })
-    manifest["monthly_shards"][shard_idx] = shard
+    if isinstance(shards, dict):
+        manifest["monthly_shards"][month_label] = shard.get("shard_path") or shard
+    else:
+        manifest["monthly_shards"][shard_idx] = shard
     manifest["last_fine_tuned_month"] = month_label
     manifest["last_checkpoint_path"] = out_path
 
     output_manifest = bookkeeping_path or manifest_file
+
+    out_dir = os.path.dirname(output_manifest)
+    if out_dir and not os.path.exists(out_dir):
+        os.makedirs(out_dir, exist_ok=True)
     with open(output_manifest, "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2)
     print(f"Updated manifest at {output_manifest}")
 
-    return out_path
+    return out_path, new_replay_samples
 
 def train_predict(args, predict_dt):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)
@@ -345,7 +574,7 @@ def train_predict(args, predict_dt):
                               drop_last=True)
     val_loader = DataLoader(val_dataset, batch_size=len(val_dataset), pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=len(test_dataset), pin_memory=True)
-    print(len(train_loader), len(val_loader), len(test_loader))
+    # print(len(train_loader), len(val_loader), len(test_loader))
 
     # create or load model
     env_init = create_env_init(args, dataset=train_dataset)
@@ -360,6 +589,11 @@ def train_predict(args, predict_dt):
                         seed=args.seed,
                         device=args.device)
     elif args.policy == 'HGAT':
+        # Determine lookback from environment or args to ensure consistency
+        lookback = getattr(env_init, 'lookback', getattr(args, 'lookback', 30))
+        if hasattr(env_init, 'envs'):
+             lookback = getattr(env_init.envs[0], 'lookback', lookback)
+
         policy_kwargs = dict(
             last_layer_dim_pi=args.num_stocks,  # Should equal num_stocks for proper initialization
             last_layer_dim_vf=args.num_stocks,
@@ -382,6 +616,40 @@ def train_predict(args, predict_dt):
     init_policy_bias_from_prior(model, getattr(args, "finrag_prior", None))
     train_model_and_predict(model, args, train_loader, val_loader, test_loader)
 
+    if getattr(args, "ptr_mode", False):
+        print("Selecting initial replay samples from pre-training data...")
+        # Recreate the env with the full training set for selection
+        env_selection = create_env_init(args, dataset=train_dataset)
+        model.set_env(env_selection)
+        
+        initial_buffer = select_replay_samples(model, env_selection, train_dataset, k_percent=0.1)
+        
+        os.makedirs(args.save_dir, exist_ok=True)
+        buffer_path = os.path.join(args.save_dir, f"replay_buffer_{args.market}.pkl")
+        with open(buffer_path, "wb") as f:
+            pickle.dump(initial_buffer, f)
+        print(f"Saved initial replay buffer ({len(initial_buffer)} samples) to {buffer_path}")
+
+    checkpoint_path = None
+    try:
+        os.makedirs(args.save_dir, exist_ok=True)
+        ts = time.strftime('%Y%m%d_%H%M%S')
+        checkpoint_path = os.path.join(
+            args.save_dir,
+            f"ppo_{args.policy.lower()}_{args.market}_{ts}.zip",
+        )
+        model.save(checkpoint_path)
+        print(f"Saved pre-training checkpoint to {checkpoint_path}")
+
+        baseline_path = getattr(args, "baseline_checkpoint", None)
+        if baseline_path:
+            os.makedirs(os.path.dirname(baseline_path), exist_ok=True)
+            shutil.copy2(checkpoint_path, baseline_path)
+            print(f"Updated baseline checkpoint at {baseline_path}")
+    except Exception as exc:
+        print(f"Failed to save pre-training checkpoint: {exc}")
+
+    return model, checkpoint_path
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Transaction ..")
@@ -393,7 +661,7 @@ if __name__ == '__main__':
     parser.add_argument("-pos_yn", "-pos", default="y", help="Enable momentum relation graph")
     parser.add_argument("-neg_yn", "-neg", default="y", help="Enable reversal relation graph")
     parser.add_argument("-multi_reward_yn", "-mr", default="y", help="Enable multi-reward IRL head")
-    parser.add_argument("-policy", "-p", default="MLP", help="Policy architecture identifier")
+    parser.add_argument("-policy", "-p", default="HGAT", help="Policy architecture identifier")
     # continual learning / resume
     parser.add_argument("--resume_model_path", default=None, help="Path to previously saved PPO model to resume from")
     parser.add_argument("--reward_net_path", default=None, help="Path to saved IRL reward network state_dict to resume from")
@@ -401,10 +669,12 @@ if __name__ == '__main__':
     parser.add_argument("--save_dir", default="./checkpoints", help="Directory to save trained models")
     parser.add_argument("--baseline_checkpoint", default="./checkpoints/baseline.zip",
                         help="Destination checkpoint promoted after passing gating criteria")
+    parser.add_argument("--manifest", default=None, help="Path to monthly_manifest.json (defaults to dataset directory)")
     parser.add_argument("--promotion_min_sharpe", type=float, default=0.5,
                         help="Minimum Sharpe ratio required to promote a fine-tuned checkpoint")
     parser.add_argument("--promotion_max_drawdown", type=float, default=0.2,
                         help="Maximum acceptable drawdown (absolute fraction, e.g. 0.2 for 20%) for promotion")
+    
     parser.add_argument("--run_monthly_fine_tune", action="store_true",
                         help="Run monthly fine-tuning using the manifest instead of full training")
     parser.add_argument("--discover_months_with_pathway", action="store_true",
@@ -413,6 +683,9 @@ if __name__ == '__main__':
                         help="Optional cutoff (days) to drop late daily files when building monthly shards via Pathway")
     parser.add_argument("--min_month_days", type=int, default=10,
                         help="Minimum number of daily files required to keep a discovered month window")
+    parser.add_argument("--fine_tune_start_month", default=None,
+                        help="Skip shards earlier than this month label (YYYY-MM) when selecting the next month")
+    
     parser.add_argument("--expert_cache_path", default=None,
                         help="Optional path to cache expert trajectories for reuse")
     parser.add_argument("--num_expert_trajectories", type=int, default=100,
@@ -433,8 +706,31 @@ if __name__ == '__main__':
     parser.add_argument("--risk_score", type=float, default=0.5, help="User risk score: 0=conservative, 1=aggressive")
     parser.add_argument("--dd_base_weight", type=float, default=1.0, help="Base weight for drawdown penalty")
     parser.add_argument("--dd_risk_factor", type=float, default=1.0, help="Risk factor k in β_dd(ρ) = β_base*(1+k*(1-ρ))")
+
+    # PTR (Policy Transfer Regularization) parameters
+    parser.add_argument("--ptr_mode", action="store_true", help="Enable Policy Transfer via Regularization (PTR) for continual learning")
+    parser.add_argument("--ptr_coef", type=float, default=0.1, help="Coefficient for PTR loss (KL divergence penalty)")
+    parser.add_argument("--use_ptr", action="store_true", help="Backward-compatible alias for --ptr_mode")
+    parser.add_argument("--ptr_memory_size", type=int, default=1000, help="Maximum number of samples retained in the PTR replay buffer")
+    parser.add_argument("--ptr_priority_type", type=str, default="max", help="Replay buffer priority aggregation strategy")
+
+    # Date ranges
+    parser.add_argument("--train_start_date", default="2020-01-06", help="Start date for training")
+    parser.add_argument("--train_end_date", default="2023-01-31", help="End date for training")
+    parser.add_argument("--val_start_date", default="2023-02-01", help="Start date for validation")
+    parser.add_argument("--val_end_date", default="2023-12-29", help="End date for validation")
+    parser.add_argument("--test_start_date", default="2024-01-02", help="Start date for testing")
+    parser.add_argument("--test_end_date", default="2024-12-26", help="End date for testing")
+
     args = parser.parse_args()
     args.market = 'custom'
+
+    # Handle aliases and config
+    if getattr(args, "use_ptr", False):
+        args.ptr_mode = True
+
+    PPO_PARAMS["batch_size"] = args.batch_size
+    PPO_PARAMS["n_steps"] = args.n_steps
 
     if getattr(args, "disable_tensorboard", False):
         PPO_PARAMS["tensorboard_log"] = None
@@ -444,13 +740,8 @@ if __name__ == '__main__':
     args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
     args.model_name = 'SmartFolio'
     args.relation_type = getattr(args, "relation_type", "hy") or "hy"
-    args.train_start_date = '2020-01-06'
-    args.train_end_date = '2023-01-31'
-    args.val_start_date = '2023-02-01'
-    args.val_end_date = '2023-12-29'
-    args.test_start_date = '2024-01-02'
-    args.test_end_date = '2024-12-26'
     args.seed = 123
+
     # Auto-detect input_dim (number of per-stock features) from a sample file
     try:
         data_dir_detect = f'dataset_default/data_train_predict_{args.market}/{args.horizon}_{args.relation_type}/'
@@ -487,6 +778,7 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Warning: input_dim auto-detection failed ({e}); falling back to 6")
         args.input_dim = 6
+    args.input_dim = 6
     args.ind_yn = True
     args.pos_yn = True
     args.neg_yn = True
@@ -526,7 +818,7 @@ if __name__ == '__main__':
 
     print("market:", args.market, "num_stocks:", args.num_stocks)
     if args.run_monthly_fine_tune:
-        checkpoint = fine_tune_month(args, manifest_path="dataset_default/data_train_predict_custom/1_corr/monthly_manifest.json")
+        checkpoint = fine_tune_month(args, manifest_path=args.manifest)
         print(f"Monthly fine-tuning complete. Checkpoint: {checkpoint}")
     else:
         trained_model = train_predict(args, predict_dt='2024-12-30')

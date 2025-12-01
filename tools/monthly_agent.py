@@ -15,11 +15,32 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 STATE_FILE = "monthly_agent_state.json"
 LOCK_FILE = "monthly_agent.lock"
 DEFAULT_MANIFEST = "monthly_manifest.json"
+
+
+def _default_manifest_path(market: str, horizon: int | str, relation_type: str) -> Path:
+    return Path("dataset_default") / f"data_train_predict_{market}" / f"{horizon}_{relation_type}" / DEFAULT_MANIFEST
+
+
+def _resolve_manifest_path(manifest_arg: str, market: str, horizon: int | str, relation_type: str) -> Path:
+    """
+    Prefer an explicitly provided manifest if it exists; otherwise use the canonical dataset path.
+    If a relative filename is provided but does not exist, place it under the dataset dir.
+    """
+    if manifest_arg:
+        candidate = Path(manifest_arg).expanduser()
+        if candidate.is_file():
+            return candidate
+        if not candidate.is_absolute():
+            alt = _default_manifest_path(market, horizon, relation_type).with_name(candidate.name)
+            if alt.is_file():
+                return alt
+    return _default_manifest_path(market, horizon, relation_type)
 
 
 def _load_state() -> Dict[str, Any]:
@@ -119,13 +140,15 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Log what would run, but do nothing")
     args = parser.parse_args()
 
+    manifest_path = _resolve_manifest_path(args.manifest, args.market, args.horizon, args.relation_type)
+
     if not _acquire_lock():
         print("[agent] Lock exists, aborting.")
         return
 
     try:
         state = _load_state()
-        manifest = _read_manifest(args.manifest)
+        manifest = _read_manifest(str(manifest_path))
         last_processed = state.get("last_processed_month") or manifest.get("last_fine_tuned_month")
         latest_manifest_month = _latest_month_from_manifest(manifest)
 
@@ -140,7 +163,7 @@ def main():
             needs_run = True
         else:
             # no manifest? trigger a run
-            if not os.path.exists(args.manifest):
+            if not os.path.exists(manifest_path):
                 needs_run = True
 
         if not needs_run:
@@ -166,7 +189,8 @@ def main():
             f"--market {args.market} "
             f"--horizon {args.horizon} "
             f"--relation_type {args.relation_type} "
-            f"{args.fine_tune_flags}"
+            f"{args.fine_tune_flags} "
+            f"--manifest {manifest_path}"
         )
         rc = _run_cmd(ft_cmd, args.dry_run)
         if rc != 0:
@@ -174,7 +198,7 @@ def main():
             return
 
         # Update state
-        manifest_after = _read_manifest(args.manifest)
+        manifest_after = _read_manifest(str(manifest_path))
         last_ft = manifest_after.get("last_fine_tuned_month") or _latest_month_from_manifest(manifest_after)
         state["last_processed_month"] = last_ft
         _save_state(state)
