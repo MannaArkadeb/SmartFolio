@@ -23,17 +23,7 @@ except Exception:  # pragma: no cover
     yf = None
 
 
-TREND_LOOKBACK_DAYS = 21  # ~1 trading month
-FEATURE_COLS = [
-    "close",
-    "open",
-    "high",
-    "low",
-    "prev_close",
-    "volume",
-    "daily_change",
-    "trend_1m",
-]
+FEATURE_COLS = ["close", "open", "high", "low", "prev_close", "volume"]
 FEATURE_COLS_NORM = [f"{c}_normalized" for c in FEATURE_COLS]
 
 # Output root to match what main.py expects
@@ -92,30 +82,6 @@ def fetch_ohlcv_yf(tickers: List[str], start: str, end: str) -> pd.DataFrame:
     # Keep only needed columns
     tall = tall[["kdcode", "dt", "close", "open", "high", "low", "prev_close", "volume"]]
     return tall
-
-
-def _trend_over_window(window: np.ndarray) -> float:
-    """Percent change over the window to represent the month's line trend."""
-    if len(window) == 0:
-        return np.nan
-    start = window[0]
-    end = window[-1]
-    return (end - start) / (start + 1e-8)
-
-
-def add_engineered_features(df: pd.DataFrame, trend_lookback: int = TREND_LOOKBACK_DAYS) -> pd.DataFrame:
-    """Add daily change % and 1M trend slope-like feature to the OHLCV frame."""
-    df = df.copy()
-    # Daily price change percentage using prev_close to match label definition
-    df["daily_change"] = df["close"] / df["prev_close"] - 1
-    # 1-month trend: percent change over the last ~21 trading days, per ticker
-    df["trend_1m"] = (
-        df.groupby("kdcode")["close"]
-        .transform(lambda x: x.rolling(window=trend_lookback, min_periods=trend_lookback).apply(_trend_over_window, raw=True))
-    )
-    # Drop rows without full feature coverage
-    df = df.dropna(subset=["daily_change", "trend_1m"]).reset_index(drop=True)
-    return df
 
 
 def get_label(df: pd.DataFrame, horizon: int = 1) -> pd.DataFrame:
@@ -253,7 +219,7 @@ def compute_monthly_corrs(df: pd.DataFrame, market: str, lookback_days: int = 21
         actual_lookback = end_idx - start_idx + 1
         for code in codes:
             sub = window[window["kdcode"] == code]
-            y = sub[FEATURE_COLS].values
+            y = sub[["close", "open", "high", "low", "prev_close", "volume"]].values
             # ensure complete window (or at least 2 days for correlation)
             if y.shape[0] == actual_lookback and y.shape[0] >= 2:
                 feat_dict[code] = y.T  # shape [F, T]
@@ -364,7 +330,7 @@ def save_daily_graph(dt: str,
             feat_dict = {}
             for code in codes:
                 sub = window[window["kdcode"] == code]
-                y = sub[FEATURE_COLS].values
+                y = sub[["close", "open", "high", "low", "prev_close", "volume"]].values
                 # Require at least 2 days for correlation computation
                 if y.shape[0] == actual_lookback and y.shape[0] >= 2:
                     feat_dict[code] = y.reshape(-1)
@@ -403,7 +369,7 @@ def save_daily_graph(dt: str,
         array = df_code_dt[cols].values
         if ts_array.T.shape[1] == lookback and array.shape[0] == 1:
             ts_features.append(ts_array)
-            features.append(array[0])  # Squeeze to [feature_dim] instead of [1, feature_dim]
+            features.append(array[0])  # Squeeze to [6] instead of [1, 6]
             label = df_ts_code.loc[df_ts_code["dt"] == dt]["label"].values
             labels.append(label[0])
             day_last_code.append([code, dt])
@@ -482,12 +448,6 @@ def main():
     # 1) Download OHLCV
     print(f"Downloading OHLCV for {len(tickers)} tickers from {args.start} to {args.end}...")
     df_raw = fetch_ohlcv_yf(tickers, args.start, args.end)
-    trend_window = max(args.lookback, TREND_LOOKBACK_DAYS) if args.lookback else TREND_LOOKBACK_DAYS
-    df_raw = add_engineered_features(df_raw, trend_lookback=trend_window)
-    if df_raw.empty:
-        raise ValueError(
-            f"No rows left after computing engineered features. Ensure the date range spans at least {trend_window} trading days."
-        )
 
     # Save the 'org' CSV for reference (mirrors existing naming convention)
     org_out = os.path.join(DATASET_DEFAULT_ROOT, f"{args.market}_org.csv")
