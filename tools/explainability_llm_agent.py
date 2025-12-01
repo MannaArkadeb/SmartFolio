@@ -146,6 +146,7 @@ def assemble_prompt(ctx: SnapshotContext) -> str:
 
     instructions = (
         "You are given structured JSON data summarizing decision-tree surrogates. "
+        "Feature names follow the pattern 'TICKER::t-<N>::Metric', where t-0 is the most recent trading day, t-1 is one day back, etc. "
         "Convert the 'rules' and 'feature_importances' for each stock into the plain English format defined in the system prompt. "
         "Ignore the 'avg_weight' field completely in your output.\n"
     )
