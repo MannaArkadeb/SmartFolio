@@ -129,29 +129,23 @@ class AllGraphDataSampler(data.Dataset):
 
     def _build_monthly_index(self) -> Dict[str, str]:
         daily_index = self.manifest.get("daily_index", {}) if isinstance(self.manifest, dict) else {}
-        # Fallback: derive daily_index from monthly_shards if missing
+        # Fallback: if daily_index is missing/empty, build it by scanning monthly shard files on disk
         if isinstance(self.manifest, dict) and not daily_index:
-            shards = self.manifest.get("monthly_shards", {})
-            if isinstance(shards, dict):
-                for month_label, rel_path in shards.items():
+            monthly_dir = os.path.join(self.data_dir, "monthly")
+            if os.path.isdir(monthly_dir):
+                shard_files = [f for f in os.listdir(monthly_dir) if f.endswith(".pkl")]
+                for fname in shard_files:
+                    rel_path = os.path.join("monthly", fname)
                     shard_path = os.path.join(self.data_dir, rel_path)
-                    if not os.path.exists(shard_path):
-                        continue
                     try:
                         cache = pickle.load(open(shard_path, "rb"))
                     except Exception:
                         continue
-                    if isinstance(cache, dict) and "dates" in cache:
-                        for dt in cache["dates"]:
-                            daily_index[dt] = rel_path
-                if daily_index:
-                    # Persist the reconstructed daily_index to avoid doing this repeatedly
-                    self.manifest["daily_index"] = daily_index
-                    try:
-                        with open(self.manifest_path, "w", encoding="utf-8") as fh:
-                            json.dump(self.manifest, fh, indent=2, sort_keys=True)
-                    except Exception:
-                        pass
+                    dates = cache.get("dates") if isinstance(cache, dict) else None
+                    if not dates:
+                        continue
+                    for dt in dates:
+                        daily_index[dt] = rel_path
         resolved = {}
         for date, rel_path in daily_index.items():
             resolved[date] = os.path.join(self.data_dir, rel_path)
