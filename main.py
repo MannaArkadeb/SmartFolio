@@ -433,16 +433,17 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         raise ValueError(f"Monthly dataset for {month_label} is empty (start={month_start}, end={month_end})")
 
     # Pad short lookback windows to the configured lookback to avoid stacking errors
-    # when monthly shards have fewer trading days than args.lookback.
+    # when monthly shards (or injected replay samples) have fewer trading days than args.lookback.
     target_lookback = getattr(args, "lookback", 30)
-    for i, sample in enumerate(monthly_dataset.data_all):
+
+    def _pad_sample(sample):
         ts_feats = sample.get("ts_features")
         if ts_feats is None:
-            continue
+            return sample
         try:
             length = ts_feats.shape[1]
         except Exception:
-            continue
+            return sample
         if length < target_lookback:
             pad_len = target_lookback - length
             if isinstance(ts_feats, torch.Tensor):
@@ -451,12 +452,17 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
             else:
                 pad_slice = np.repeat(ts_feats[:, :1, :], pad_len, axis=1)
                 ts_padded = np.concatenate([pad_slice, ts_feats], axis=1)
+            sample = dict(sample)
             sample["ts_features"] = ts_padded
-            monthly_dataset.data_all[i] = sample
+        return sample
+
+    for i, sample in enumerate(monthly_dataset.data_all):
+        monthly_dataset.data_all[i] = _pad_sample(sample)
 
     if replay_buffer:
         print(f"Injecting {len(replay_buffer)} samples from replay buffer into training data.")
-        monthly_dataset.data_all.extend(replay_buffer)
+        padded_replay = [_pad_sample(s) for s in replay_buffer]
+        monthly_dataset.data_all.extend(padded_replay)
 
     monthly_loader = DataLoader(
         monthly_dataset,
