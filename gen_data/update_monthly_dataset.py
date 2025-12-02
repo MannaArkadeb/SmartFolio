@@ -391,13 +391,24 @@ def run(args: argparse.Namespace) -> None:
         print(f"All samples for {month_tag} were filtered out; aborting.")
         return
 
-    monthly_dir = os.path.join(data_dir, "monthly")
-    shard_path = _write_monthly_shard(monthly_dir, month_tag, valid_dates, payloads)
-
-    monthly_shards[month_tag] = os.path.relpath(shard_path, data_dir)
-
+    # Write individual daily pickle files (one per trading day)
     daily_index = cast(Dict[str, str], manifest.setdefault("daily_index", {}))
-    daily_index.update({dt: os.path.relpath(shard_path, data_dir) for dt in valid_dates})
+    for dt, payload in zip(valid_dates, payloads):
+        daily_fname = f"{dt}.pkl"
+        daily_path = os.path.join(data_dir, daily_fname)
+        with open(daily_path, "wb") as f:
+            pickle.dump(payload, f)
+        daily_index[dt] = daily_fname
+
+    # Record month metadata (dates, start/end) for downstream selection
+    monthly_shards[month_tag] = {
+        "month": month_tag,
+        "dates": valid_dates,
+        "month_start": valid_dates[0],
+        "month_end": valid_dates[-1],
+        "shard_type": "daily_files",
+        "processed": False,
+    }
     manifest["last_trading_day"] = valid_dates[-1]
     corr_matrices = cast(List[str], manifest.setdefault("corr_matrices", []))
     if relation_dt not in corr_matrices:
@@ -426,7 +437,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset-root", default=None, help="Override dataset_default root directory.")
     parser.add_argument("--corr-root", default=None, help="Override correlation output directory.")
     parser.add_argument("--raw-path", default=None, help="Explicit path to the latest raw parquet/pickle snapshot.")
-    parser.add_argument("--tickers-file", default=None, help="Optional newline-delimited file with tickers to update.")
+    parser.add_argument("--tickers-file", default="tickers.csv", help="Optional newline-delimited file with tickers to update.")
     return parser
 
 

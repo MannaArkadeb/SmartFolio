@@ -317,7 +317,7 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
                     dataset_root=None,
                     corr_root=None,
                     raw_path=None,
-                    tickers_file=None,
+                    tickers_file=args.tickers_file
                 )
                 print(f"Manifest missing; running monthly dataset updater to create {manifest_file}")
                 update_monthly_dataset.run(updater_args)
@@ -357,27 +357,40 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         except Exception as exc:  # pragma: no cover - defensive for unexpected Pathway errors
             print(f"Pathway month discovery failed: {exc}")
     if not shards:
-        raise ValueError("Manifest does not contain any 'monthly_shards'")
+        shards = {}
 
-    # Support two manifest formats:
-    # 1) A list of shard dicts (legacy)
-    # 2) A dict mapping month_label -> shard_path (current generator)
+    # Build months primarily from daily_index; merge any month metadata if present
     shards_list = []
+    last_ft = manifest.get("last_fine_tuned_month")
+    months = {}
+
+    daily_index = manifest.get("daily_index", {})
+    if isinstance(daily_index, dict):
+        for dt in daily_index.keys():
+            try:
+                lbl = datetime.strptime(dt, "%Y-%m-%d").strftime("%Y-%m")
+            except Exception:
+                continue
+            months.setdefault(lbl, []).append(dt)
+
     if isinstance(shards, dict):
-        # Convert mapping into a list of shard-like dicts. We infer a 'processed'
-        # flag from manifest['last_fine_tuned_month'] when available.
-        last_ft = manifest.get("last_fine_tuned_month")
-        for idx, (month_label, rel_path) in enumerate(sorted(shards.items())):
-            shard = {
-                "month": month_label,
-                "shard_path": rel_path,
-            }
-            # mark processed if this month equals last_fine_tuned_month
-            shard["processed"] = bool(last_ft == month_label)
-            shards_list.append(shard)
-    else:
-        # Assume it's already a list of shard dicts
-        shards_list = list(shards)
+        for lbl, payload in shards.items():
+            if isinstance(payload, dict) and payload.get("dates"):
+                months.setdefault(lbl, []).extend(payload["dates"])
+
+    for lbl, dates in months.items():
+        dates_sorted = sorted(set(dates))
+        shard = {
+            "month": lbl,
+            "dates": dates_sorted,
+            "month_start": dates_sorted[0],
+            "month_end": dates_sorted[-1],
+            "processed": bool(last_ft == lbl),
+        }
+        shards_list.append(shard)
+
+    if not shards_list:
+        raise ValueError("Manifest does not contain any shards (monthly_shards or daily_index)")
 
     target_month_label = getattr(args, "fine_tune_month", None)
     start_month_label = getattr(args, "fine_tune_start_month", None)
@@ -392,6 +405,10 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
     for idx, shard in enumerate(shards_list):
         if shard.get("processed", False):
             continue
+        if shard.get("dates") and not shard.get("month_start"):
+            dates_sorted = sorted(shard["dates"])
+            shard["month_start"] = dates_sorted[0]
+            shard["month_end"] = dates_sorted[-1]
         try:
             month_label, month_start, month_end = _infer_month_dates(shard)
         except ValueError:
@@ -410,11 +427,9 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         return datetime.strptime(month_label, "%Y-%m")
 
     shard_idx, shard, month_label, month_start, month_end = max(unprocessed, key=_month_sort_key)
-    
+
     base_dir = (
-        shard.get("data_dir")
-        or shard.get("base_dir")
-        or manifest.get("base_dir")
+        manifest.get("base_dir")
         or f'dataset_default/data_train_predict_{args.market}/{args.horizon}_{args.relation_type}/'
     )
 
@@ -752,6 +767,7 @@ if __name__ == '__main__':
     parser.add_argument("--val_end_date", default="2023-12-29", help="End date for validation")
     parser.add_argument("--test_start_date", default="2024-01-02", help="Start date for testing")
     parser.add_argument("--test_end_date", default="2024-12-26", help="End date for testing")
+    parser.add_argument("tickers_file", default="tickers.csv", help="Path to CSV file containing list of tickers")
 
     args = parser.parse_args()
     args.market = 'custom'
