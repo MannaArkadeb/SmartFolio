@@ -490,6 +490,9 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
     )
 
     env_init = create_env_init(args, data_loader=monthly_loader)
+    env_ref = env_init.envs[0] if hasattr(env_init, "envs") else env_init
+    args.lookback = getattr(env_ref, "lookback", getattr(args, "lookback", 30))
+    args.input_dim = getattr(env_ref, "feat_dim", getattr(args, "input_dim", 6))
 
     previous_checkpoint = None
     # Find the strictly previous processed shard's checkpoint
@@ -624,6 +627,9 @@ def train_predict(args, predict_dt):
 
     # create or load model
     env_init = create_env_init(args, dataset=train_dataset)
+    env_ref = env_init.envs[0] if hasattr(env_init, "envs") else env_init
+    args.lookback = getattr(env_ref, "lookback", getattr(args, "lookback", 30))
+    args.input_dim = getattr(env_ref, "feat_dim", getattr(args, "input_dim", 6))
     if args.policy == 'MLP':
         if getattr(args, 'resume_model_path', None) and os.path.exists(args.resume_model_path):
             print(f"Loading PPO model from {args.resume_model_path}")
