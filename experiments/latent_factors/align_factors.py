@@ -12,7 +12,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataset import TraceDataset
-from model import SparseAutoencoder
+from .model import SparseAutoencoder, TopKSparseAutoencoder, JumpReLUSparseAutoencoder
 from preproc import PreprocessConfig, preprocess_obs
 
 
@@ -27,39 +27,110 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def load_autoencoder(ckpt_path: Path, device: torch.device) -> Tuple[SparseAutoencoder, dict]:
-    ckpt = torch.load(ckpt_path, map_location=device)
+def load_autoencoder(ckpt_path: Path, device: torch.device) -> Tuple[torch.nn.Module, dict]:
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
     config = ckpt.get("config", {})
     input_dim = ckpt.get("input_dim")
     latent_dim = config.get("latent_dim")
     hidden_dim = config.get("hidden_dim", 512)
     num_hidden = config.get("num_hidden", 2)
+    model_type = config.get("model_type", "l1")
+    
     if input_dim is None or latent_dim is None:
         raise ValueError("Checkpoint missing input_dim or latent_dim")
-    model = SparseAutoencoder(
-        input_dim=input_dim,
-        latent_dim=latent_dim,
-        hidden_dim=hidden_dim,
-        num_hidden=num_hidden,
-    )
+    
+    # Create model based on type
+    if model_type == "topk":
+        k = config.get("k", 32)
+        tied_weights = config.get("tied_weights", False)
+        normalize_decoder = config.get("normalize_decoder", True)
+        activation = config.get("activation", "relu")
+        model = TopKSparseAutoencoder(
+            input_dim=input_dim,
+            latent_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            num_hidden=num_hidden,
+            k=k,
+            tied_weights=tied_weights,
+            normalize_decoder=normalize_decoder,
+            activation=activation,
+        )
+    elif model_type == "jumprelu":
+        model = JumpReLUSparseAutoencoder(
+            input_dim=input_dim,
+            latent_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            num_hidden=num_hidden,
+        )
+    else:
+        model = SparseAutoencoder(
+            input_dim=input_dim,
+            latent_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            num_hidden=num_hidden,
+        )
+    
     model.load_state_dict(ckpt["model_state_dict"])
     model.to(device)
     model.eval()
     preproc_cfg = PreprocessConfig.from_dict(ckpt.get("preprocess"))
     meta = ckpt.get("meta")
-    return model, {"config": config, "preprocess": preproc_cfg, "meta": meta}
+    return model, {"config": config, "preprocess": preproc_cfg, "meta": meta, "model_type": model_type}
 
 
-def fit_ridge(Z: np.ndarray, Y: np.ndarray, lam: float) -> Tuple[np.ndarray, np.ndarray]:
-    """Closed-form ridge regression with bias term."""
-    ones = np.ones((Z.shape[0], 1), dtype=Z.dtype)
-    Zb = np.concatenate([Z, ones], axis=1)
+def fit_ridge(Z: np.ndarray, Y: np.ndarray, lam: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Closed-form ridge regression with bias term and numerical stability.
+    
+    Returns: (predictions, weights, active_mask)
+    """
+    # Convert to float64 first
+    Z = Z.astype(np.float64)
+    Y = Y.astype(np.float64)
+    
+    # Handle any inf/nan in input
+    Z = np.nan_to_num(Z, nan=0.0, posinf=0.0, neginf=0.0)
+    Y = np.nan_to_num(Y, nan=0.0, posinf=0.0, neginf=0.0)
+    
+    # Identify active latent columns (non-zero variance)
+    z_std = Z.std(axis=0)
+    active_mask = z_std > 1e-6
+    n_active = active_mask.sum()
+    print(f"Active latents: {n_active}/{Z.shape[1]}")
+    
+    if n_active == 0:
+        # No active latents, return zeros
+        print("Warning: No active latents found!")
+        return np.zeros_like(Y), np.zeros((Z.shape[1] + 1, Y.shape[1])), active_mask
+    
+    # Use only active columns
+    Z_active = Z[:, active_mask]
+    
+    # Standardize active latents for numerical stability
+    z_mean = Z_active.mean(axis=0, keepdims=True)
+    z_std_active = Z_active.std(axis=0, keepdims=True) + 1e-8
+    Z_norm = (Z_active - z_mean) / z_std_active
+    
+    ones = np.ones((Z_norm.shape[0], 1), dtype=np.float64)
+    Zb = np.concatenate([Z_norm, ones], axis=1)
+    
     dim = Zb.shape[1]
-    A = Zb.T @ Zb + lam * np.eye(dim, dtype=Z.dtype)
+    A = Zb.T @ Zb + lam * np.eye(dim, dtype=np.float64)
     B = Zb.T @ Y
-    W = np.linalg.solve(A, B)
-    preds = Zb @ W
-    return preds, W
+    
+    try:
+        W_active = np.linalg.solve(A, B)
+    except np.linalg.LinAlgError:
+        W_active = np.linalg.lstsq(A, B, rcond=None)[0]
+    
+    preds = Zb @ W_active
+    
+    # Reconstruct full weight matrix (with zeros for inactive latents)
+    W_full = np.zeros((Z.shape[1] + 1, Y.shape[1]), dtype=np.float64)
+    active_indices = np.where(active_mask)[0]
+    W_full[active_indices, :] = W_active[:-1]  # Latent weights
+    W_full[-1, :] = W_active[-1]  # Bias
+    
+    return preds, W_full, active_mask
 
 
 def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
@@ -83,6 +154,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     model, meta_cfg = load_autoencoder(Path(args.checkpoint).expanduser(), device)
     preproc_cfg: PreprocessConfig = meta_cfg["preprocess"]
     ckpt_meta = meta_cfg.get("meta") or {}
+    model_type = meta_cfg.get("model_type", "l1")
 
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
     latents = []
@@ -93,13 +165,22 @@ def main(argv: Sequence[str] | None = None) -> None:
             # Use metadata from checkpoint if present, else dataset meta
             meta_for_preproc = ckpt_meta if ckpt_meta else dataset.meta
             obs = preprocess_obs(obs_raw, meta_for_preproc, preproc_cfg)
-            _, z = model(obs)
+            
+            # Handle different model return types
+            output = model(obs)
+            if model_type in ("topk", "jumprelu"):
+                # Returns (recon, latent, aux_info)
+                z = output[1]
+            else:
+                # Returns (recon, latent)
+                z = output[1]
+            
             latents.append(z.cpu().numpy())
             targets.append(batch["logits"].numpy())
     Z = np.concatenate(latents, axis=0)
     Y = np.concatenate(targets, axis=0)
 
-    preds, weights = fit_ridge(Z, Y, args.ridge_lambda)
+    preds, weights, active_mask = fit_ridge(Z, Y, args.ridge_lambda)
     r2 = r2_score(Y, preds)
     mse = np.mean((Y - preds) ** 2, axis=0)
 
@@ -111,6 +192,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "mse_per_action": mse.tolist(),
         "num_samples": int(Z.shape[0]),
         "latent_dim": int(Z.shape[1]),
+        "active_latents": int(active_mask.sum()),
     }
     metrics_path = output_dir / "alignment_metrics.json"
     with metrics_path.open("w", encoding="utf-8") as fh:
