@@ -184,8 +184,31 @@ def main(argv: Sequence[str] | None = None) -> None:
     model = PPO.load(str(model_path), env=None, device=args.device)
     device = torch.device(args.device)
 
+    # --- SETUP FORWARD HOOK TO CAPTURE ACTIVATIONS ---
+    # We want to capture the embedding right before the final linear head.
+    # In TemporalHGAT (model.py), this is the output of 'self.pn' (PairNorm) 
+    # or 'self.sem_gat' (Fusion). 'self.pn' is the best target as it feeds self.output_head.
+    captured_activations = {}
+    
+    def get_activation(name):
+        def hook(model, input, output):
+            # output of PairNorm is [batch, num_stocks, hidden_dim]
+            captured_activations[name] = output.detach()
+        return hook
+
+    # Navigate to the underlying policy network
+    # PPO.policy -> HGATActorCriticPolicy.mlp_extractor -> HGATNetwork.policy_net -> TemporalHGAT
+    policy_net = model.policy.mlp_extractor.policy_net
+    if hasattr(policy_net, "pn"):
+        hook_handle = policy_net.pn.register_forward_hook(get_activation("embedding"))
+        print(f"Hook registered on {policy_net.pn}")
+    else:
+        print("Warning: Could not find 'pn' layer in policy_net. Activations will not be collected.")
+        hook_handle = None
+
     # Storage
     obs_buffer: List[np.ndarray] = []
+    activations_buffer: List[np.ndarray] = []  # NEW: Store internal embeddings
     logits_buffer: List[np.ndarray] = []
     actions_buffer: List[np.ndarray] = []
     rewards_buffer: List[float] = []
@@ -219,7 +242,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         vec_env, obs = env.get_sb_env()
         vec_env.reset()
 
-        # Capture lookback from env initialization for reconstruction later
         lookback_seen = getattr(env, "lookback", lookback_seen)
 
         max_steps = returns.shape[0] if hasattr(returns, "shape") else len(returns)
@@ -227,10 +249,17 @@ def main(argv: Sequence[str] | None = None) -> None:
 
         for step in range(int(step_limit)):
             obs_tensor, _ = model.policy.obs_to_tensor(obs)
+            
+            # This block runs the policy network to get attention weights AND triggers the hook
             with torch.no_grad():
                 features_tensor = model.policy.extract_features(obs_tensor.to(device))
                 logits, attn = _call_policy_with_attention(model.policy.mlp_extractor.policy_net, features_tensor)
 
+            # Retrieve captured activation from hook
+            if "embedding" in captured_activations:
+                # Shape: [1, num_stocks, hidden_dim] -> squeeze to [num_stocks, hidden_dim]
+                activations_buffer.append(captured_activations["embedding"].cpu().numpy()[0])
+            
             action, _ = model.predict(obs, deterministic=args.deterministic)
             obs, rewards, dones, _info = vec_env.step(action)
 
@@ -251,8 +280,13 @@ def main(argv: Sequence[str] | None = None) -> None:
                 break
 
         vec_env.close()
+    
+    # Remove hook
+    if hook_handle:
+        hook_handle.remove()
 
     obs_arr = np.stack(obs_buffer, axis=0).astype(np.float32) if obs_buffer else np.zeros((0,), dtype=np.float32)
+    activations_arr = np.stack(activations_buffer, axis=0).astype(np.float32) if activations_buffer else np.zeros((0,), dtype=np.float32)
     logits_arr = np.stack(logits_buffer, axis=0).astype(np.float32) if logits_buffer else np.zeros((0,), dtype=np.float32)
     actions_arr = np.stack(actions_buffer, axis=0).astype(np.float32) if actions_buffer else np.zeros((0,), dtype=np.float32)
     rewards_arr = np.asarray(rewards_buffer, dtype=np.float32)
@@ -260,6 +294,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     payload = {
         "obs": obs_arr,
+        "activations": activations_arr, # NEW
         "logits": logits_arr,
         "actions": actions_arr,
         "rewards": rewards_arr,
@@ -273,6 +308,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     np.savez_compressed(data_path, **payload)
     print(f"Saved traces to {data_path}")
+    print(f"  Activations shape: {activations_arr.shape}")
 
     meta_payload = {
         "horizon": args.horizon,
@@ -281,6 +317,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "input_dim": args.input_dim,
         "lookback": lookback_seen,
         "obs_dim": int(obs_arr.shape[1]) if obs_arr.ndim == 2 else None,
+        "activation_dim": int(activations_arr.shape[-1]) if activations_arr.ndim > 1 else None, # NEW
         "total_steps": int(obs_arr.shape[0]) if obs_arr.ndim >= 1 else 0,
         "model_path": args.model_path,
         "dataset_dir": str(meta["data_dir"]),

@@ -6,7 +6,7 @@ import argparse
 import json
 import math
 from pathlib import Path
-from typing import List, Literal, Sequence
+from typing import Sequence
 
 import numpy as np
 import torch
@@ -21,14 +21,13 @@ from model import (
     sparse_ae_loss,
     topk_sae_loss,
     variance_explained,
-    create_sparse_autoencoder,
 )
-from preproc import PreprocessConfig, preprocess_obs
 
+# Note: preproc.py is no longer needed for activations training
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train sparse autoencoder on PPO traces")
-    parser.add_argument("--data-path", required=True, help="Path to traces NPZ produced by collect_traces.py")
+    parser = argparse.ArgumentParser(description="Train sparse autoencoder on PPO activations")
+    parser.add_argument("--data-path", required=True, help="Path to traces NPZ produced by updated collect_traces.py")
     parser.add_argument("--output-dir", default="experiments/latent_factors/checkpoints", help="Where to store checkpoints")
     
     # Model architecture
@@ -49,7 +48,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--use-auxiliary", action="store_true", default=True, help="Use auxiliary loss for TopK")
     
     # Training
-    parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
+    parser.add_argument("--batch-size", type=int, default=256, help="Training batch size") # Increased default for dense vectors
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs")
     parser.add_argument("--lr", type=float, default=3e-4, help="Peak learning rate")
     parser.add_argument("--weight-decay", type=float, default=1e-5, help="Weight decay")
@@ -61,15 +60,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--val-split", type=float, default=0.2, help="Fraction of data for validation")
     parser.add_argument("--device", default="cpu", help="Torch device")
     parser.add_argument("--num-workers", type=int, default=0, help="DataLoader workers")
-    parser.add_argument("--drop-prev-weights", action="store_true", help="Zero out prev_weights block during training")
-    parser.add_argument("--adj-scale", type=float, default=1.0, help="Scale factor for adjacency block")
-    parser.add_argument("--ts-scale", type=float, default=1.0, help="Scale factor for ts_features block")
-    parser.add_argument(
-        "--prev-scale",
-        type=float,
-        default=0.1,
-        help="Scale factor for prev_weights block (ignored if --drop-prev-weights)",
-    )
     
     # Logging
     parser.add_argument("--log-interval", type=int, default=10, help="Epochs between detailed logs")
@@ -78,7 +68,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def compute_r2_batch(model, loader, device, meta, preproc_cfg, model_type: str) -> dict:
+def compute_r2_batch(model, loader, device, model_type: str) -> dict:
     """Compute R² and other metrics over a data loader."""
     model.eval()
     all_targets = []
@@ -90,21 +80,21 @@ def compute_r2_batch(model, loader, device, meta, preproc_cfg, model_type: str) 
     
     with torch.no_grad():
         for batch in loader:
-            obs = preprocess_obs(batch["obs_flat"].to(device), meta, preproc_cfg)
+            x = batch["input"].to(device)
             
             if model_type == "topk" or model_type == "jumprelu":
-                recon, latent, aux_info = model(obs)
+                recon, latent, aux_info = model(x)
                 sparsity = aux_info.get("sparsity", 0.0)
             else:
-                recon, latent = model(obs)
+                recon, latent = model(x)
                 sparsity = (latent != 0).float().mean()
             
-            all_targets.append(obs.cpu())
+            all_targets.append(x.cpu())
             all_recons.append(recon.cpu())
             all_latents.append(latent.cpu())
-            total_mse += float(torch.nn.functional.mse_loss(recon, obs).item()) * obs.size(0)
-            total_sparsity += float(sparsity if isinstance(sparsity, float) else sparsity.item()) * obs.size(0)
-            count += obs.size(0)
+            total_mse += float(torch.nn.functional.mse_loss(recon, x).item()) * x.size(0)
+            total_sparsity += float(sparsity if isinstance(sparsity, float) else sparsity.item()) * x.size(0)
+            count += x.size(0)
     
     targets = torch.cat(all_targets, dim=0)
     recons = torch.cat(all_recons, dim=0)
@@ -113,18 +103,12 @@ def compute_r2_batch(model, loader, device, meta, preproc_cfg, model_type: str) 
     # R² computation
     r2 = variance_explained(recons, targets).item()
     
-    # Per-dimension R² (useful for analysis)
-    ss_res = ((targets - recons) ** 2).sum(dim=0)
-    ss_tot = ((targets - targets.mean(dim=0)) ** 2).sum(dim=0)
-    r2_per_dim = (1 - ss_res / (ss_tot + 1e-8)).mean().item()
-    
     # Latent statistics
     latent_active = (latents.abs() > 1e-6).float().mean().item()
     latent_var = latents.var(dim=0).mean().item()
     
     return {
         "r2": r2,
-        "r2_per_dim": r2_per_dim,
         "mse": total_mse / count,
         "sparsity": total_sparsity / count,
         "latent_active_ratio": latent_active,
@@ -137,23 +121,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     output_dir = Path(args.output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    dataset = TraceDataset(args.data_path, reshape=False)
-    input_dim = dataset.obs.shape[1]
-    preproc_cfg = PreprocessConfig(
-        drop_prev=args.drop_prev_weights,
-        adj_scale=args.adj_scale,
-        ts_scale=args.ts_scale,
-        prev_scale=args.prev_scale,
-    )
+    # Use the new dataset which loads activations
+    dataset = TraceDataset(args.data_path)
+    
+    # Input dimension is now the size of the activation vector (e.g. 128)
+    input_dim = dataset.activations_flat.shape[1]
+    
+    print(f"Loaded dataset: {len(dataset)} samples")
+    print(f"Activation dimension (SAE Input): {input_dim}")
 
     total_len = len(dataset)
     val_size = max(1, int(total_len * args.val_split))
     train_size = total_len - val_size
-    if train_size <= 0:
-        train_size = 1
-        val_size = max(0, total_len - train_size)
     
-    # Use fixed seed for reproducible splits
     generator = torch.Generator().manual_seed(42)
     train_set, val_set = random_split(dataset, [train_size, val_size], generator=generator)
 
@@ -162,7 +142,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     device = torch.device(args.device)
     
-    # Create model based on type
+    # Create model
     if args.model_type == "topk":
         model = TopKSparseAutoencoder(
             input_dim=input_dim,
@@ -173,6 +153,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             tied_weights=args.tied_weights,
             normalize_decoder=args.normalize_decoder,
             activation=args.activation,
+            use_pre_bias=True, # Important for centering activations
         ).to(device)
     elif args.model_type == "jumprelu":
         model = JumpReLUSparseAutoencoder(
@@ -189,13 +170,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             num_hidden=args.num_hidden,
         ).to(device)
     
-    print(f"Model type: {args.model_type}")
-    print(f"Input dim: {input_dim}, Latent dim: {args.latent_dim}, Hidden: {args.hidden_dim}")
+    print(f"Model: {args.model_type}, Latents: {args.latent_dim}, K: {args.k if args.model_type=='topk' else 'N/A'}")
     print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
-    # Learning rate scheduler
     scheduler = None
     if args.scheduler == "cosine":
         scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=max(1, args.epochs // 3), T_mult=2)
@@ -226,32 +205,29 @@ def main(argv: Sequence[str] | None = None) -> None:
         train_mse = 0.0
         
         for batch in train_loader:
-            obs = preprocess_obs(batch["obs_flat"].to(device), dataset.meta, preproc_cfg)
+            x = batch["input"].to(device)
             optimizer.zero_grad()
             
             if args.model_type == "topk" or args.model_type == "jumprelu":
-                recon, latent, aux_info = model(obs)
+                recon, latent, aux_info = model(x)
                 losses = topk_sae_loss(
-                    recon, obs, latent, aux_info,
+                    recon, x, latent, aux_info,
                     aux_weight=args.aux_weight,
                     use_auxiliary=args.use_auxiliary,
                 )
             else:
-                recon, latent = model(obs)
-                losses = sparse_ae_loss(recon, obs, latent, args.sparsity_weight)
+                recon, latent = model(x)
+                losses = sparse_ae_loss(recon, x, latent, args.sparsity_weight)
             
             losses["loss"].backward()
-            
-            # Gradient clipping for stability
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            
             optimizer.step()
             
             if args.scheduler == "onecycle" and scheduler is not None:
                 scheduler.step()
             
-            train_loss += float(losses["loss"].item()) * obs.size(0)
-            train_mse += float(losses["mse"].item()) * obs.size(0)
+            train_loss += float(losses["loss"].item()) * x.size(0)
+            train_mse += float(losses["mse"].item()) * x.size(0)
         
         train_loss /= len(train_loader.dataset)
         train_mse /= len(train_loader.dataset)
@@ -259,11 +235,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         if args.scheduler == "cosine" and scheduler is not None:
             scheduler.step()
         
-        # Validation metrics
-        val_metrics = compute_r2_batch(model, val_loader, device, dataset.meta, preproc_cfg, args.model_type)
-        train_metrics = compute_r2_batch(model, train_loader, device, dataset.meta, preproc_cfg, args.model_type)
+        # Metrics
+        val_metrics = compute_r2_batch(model, val_loader, device, args.model_type)
+        train_metrics = compute_r2_batch(model, train_loader, device, args.model_type)
         
-        # Dead latent tracking
         dead_ratio = 0.0
         if hasattr(model, "get_dead_latent_ratio"):
             dead_ratio = model.get_dead_latent_ratio()
@@ -273,14 +248,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         history["train_loss"].append(train_loss)
         history["train_mse"].append(train_mse)
         history["train_r2"].append(train_metrics["r2"])
-        history["val_loss"].append(val_metrics["mse"])  # Using MSE as val_loss for TopK
+        history["val_loss"].append(val_metrics["mse"])
         history["val_mse"].append(val_metrics["mse"])
         history["val_r2"].append(val_metrics["r2"])
         history["val_sparsity"].append(val_metrics["sparsity"])
         history["dead_latent_ratio"].append(dead_ratio)
         history["lr"].append(current_lr)
         
-        # Save best model
+        # Save best
         if val_metrics["r2"] > best_val_r2:
             best_val_r2 = val_metrics["r2"]
             best_epoch = epoch
@@ -290,69 +265,35 @@ def main(argv: Sequence[str] | None = None) -> None:
                         "model_state_dict": model.state_dict(),
                         "config": vars(args),
                         "input_dim": input_dim,
-                        "preprocess": preproc_cfg.to_dict(),
-                        "meta": dataset.meta,
                         "epoch": epoch,
                         "val_r2": best_val_r2,
                     },
                     output_dir / "sparse_ae_best.pt",
                 )
         
-        # Logging
         if epoch == 1 or epoch % args.log_interval == 0 or epoch == args.epochs:
             print(
                 f"Epoch {epoch:03d} | "
-                f"train_loss={train_loss:.6f} train_R²={train_metrics['r2']:.4f} | "
-                f"val_R²={val_metrics['r2']:.4f} val_mse={val_metrics['mse']:.6f} | "
-                f"sparsity={val_metrics['sparsity']:.3f} dead={dead_ratio:.3f} | "
-                f"lr={current_lr:.2e}"
+                f"loss={train_loss:.6f} tr_R²={train_metrics['r2']:.4f} | "
+                f"val_R²={val_metrics['r2']:.4f} sparsity={val_metrics['sparsity']:.3f} dead={dead_ratio:.3f}"
             )
 
     print(f"\nBest val R²: {best_val_r2:.4f} at epoch {best_epoch}")
-
-    # Save final checkpoint
-    ckpt_path = output_dir / "sparse_ae.pt"
+    
+    # Save final
     torch.save(
         {
             "model_state_dict": model.state_dict(),
             "config": vars(args),
             "input_dim": input_dim,
-            "preprocess": preproc_cfg.to_dict(),
-            "meta": dataset.meta,
             "epoch": args.epochs,
             "best_val_r2": best_val_r2,
         },
-        ckpt_path,
+        output_dir / "sparse_ae.pt",
     )
-    print(f"Saved final checkpoint to {ckpt_path}")
+    
+    with open(output_dir / "metrics.json", "w") as f:
+        json.dump(history, f, indent=2)
 
-    metrics_path = output_dir / "metrics.json"
-    with metrics_path.open("w", encoding="utf-8") as fh:
-        json.dump(history, fh, indent=2)
-    print(f"Saved metrics to {metrics_path}")
-
-    # Export latent codes for validation split
-    latents: List[np.ndarray] = []
-    targets: List[np.ndarray] = []
-    model.eval()
-    with torch.no_grad():
-        for batch in val_loader:
-            obs = preprocess_obs(batch["obs_flat"].to(device), dataset.meta, preproc_cfg)
-            if args.model_type == "topk" or args.model_type == "jumprelu":
-                _, latent, _ = model(obs)
-            else:
-                _, latent = model(obs)
-            latents.append(latent.cpu().numpy())
-            if "logits" in batch:
-                targets.append(batch["logits"].cpu().numpy())
-    if latents:
-        latents_arr = np.concatenate(latents, axis=0)
-        export = {"latents": latents_arr}
-        if targets:
-            export["logits"] = np.concatenate(targets, axis=0)
-        np.savez_compressed(output_dir / "val_latents.npz", **export)
-        print(f"Saved validation latents to {output_dir / 'val_latents.npz'}")
-
-
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()

@@ -30,7 +30,7 @@ class TopKSparseAutoencoder(nn.Module):
         latent_dim: int = 64,
         hidden_dim: int = 512,
         num_hidden: int = 1,
-        k: int = 32,
+        k: int = 5,
         tied_weights: bool = False,
         normalize_decoder: bool = True,
         use_pre_bias: bool = True,
