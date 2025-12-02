@@ -26,4 +26,5 @@ dist/
 checkpoints/
 logs/
 
-.DS_Storeexplainability_results/*.npz
+.DS_Store
+explainability_results/

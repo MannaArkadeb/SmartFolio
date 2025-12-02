@@ -20,12 +20,33 @@ import yfinance as yf
 
 from tradingagents import llm_client
 
+# --- CHANGED: Replaced VADER with Transformers (FinBERT) ---
 try:
-    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-except ImportError:  # pragma: no cover - handled at runtime
-    SentimentIntensityAnalyzer = None  # type: ignore
+    from transformers import pipeline
+except ImportError:
+    pipeline = None
 
-_SENTIMENT_ANALYSER = SentimentIntensityAnalyzer() if SentimentIntensityAnalyzer else None
+_FINBERT_PIPELINE = None
+
+def get_finbert_analyzer():
+    """Lazy loader for FinBERT to avoid overhead on import if not used."""
+    global _FINBERT_PIPELINE
+    if _FINBERT_PIPELINE is None:
+        if pipeline is None:
+            return None
+        try:
+            print("[INFO] Loading FinBERT model (this may take a moment)...")
+            _FINBERT_PIPELINE = pipeline(
+                "text-classification", 
+                model="ProsusAI/finbert", 
+                truncation=True, 
+                max_length=512
+            )
+        except Exception as e:
+            print(f"[ERROR] Could not load FinBERT: {e}")
+            return None
+    return _FINBERT_PIPELINE
+# --- END CHANGES ---
 
 @dataclass
 class NewsArticle:
@@ -36,6 +57,7 @@ class NewsArticle:
     url: Optional[str]
     sentiment: str
     sentiment_score: int
+    confidence: float = 0.0  # --- CHANGED: Added confidence field ---
 
 
 @dataclass
@@ -82,6 +104,7 @@ def _article_to_dict(article: NewsArticle) -> Dict[str, Any]:
         "url": article.url,
         "sentiment": article.sentiment,
         "sentiment_score": int(article.sentiment_score),
+        "confidence": float(article.confidence),  # --- CHANGED ---
     }
 
 
@@ -91,6 +114,14 @@ def _article_from_dict(payload: Dict[str, Any]) -> NewsArticle:
         sentiment_int = int(sentiment_score)
     except (TypeError, ValueError):
         sentiment_int = 0
+    
+    # --- CHANGED: Handle confidence ---
+    conf_val = payload.get("confidence", 0.0)
+    try:
+        conf_float = float(conf_val)
+    except (TypeError, ValueError):
+        conf_float = 0.0
+
     return NewsArticle(
         headline=str(payload.get("headline", "")),
         published_at=payload.get("published_at"),
@@ -99,6 +130,7 @@ def _article_from_dict(payload: Dict[str, Any]) -> NewsArticle:
         url=payload.get("url"),
         sentiment=str(payload.get("sentiment", "neutral")),
         sentiment_score=sentiment_int,
+        confidence=conf_float, # --- CHANGED ---
     )
 
 
@@ -602,7 +634,8 @@ def _score_articles(articles: List[NewsArticle]) -> List[NewsArticle]:
     scored: List[NewsArticle] = []
     for article in articles:
         text = " ".join(filter(None, [article.headline, article.summary]))
-        label, score = _score_text(text)
+        # --- CHANGED: Unpack 3 values including confidence ---
+        label, score, confidence = _score_text(text)
         scored.append(
             NewsArticle(
                 headline=article.headline,
@@ -612,6 +645,7 @@ def _score_articles(articles: List[NewsArticle]) -> List[NewsArticle]:
                 url=article.url,
                 sentiment=label,
                 sentiment_score=score,
+                confidence=confidence, # --- CHANGED ---
             )
         )
     scored.sort(key=lambda a: (a.sentiment_score, a.headline.lower()), reverse=True)
@@ -728,8 +762,9 @@ def _articles_prompt_digest(articles: List[NewsArticle]) -> str:
         date_str = article.published_at or "recent"
         source = article.source or "vendor"
         summary = article.summary or "(no summary provided)"
+        # --- CHANGED: Added confidence score to LLM output ---
         lines.append(
-            f"- {tone.title()} | {source} | {date_str}: {article.headline} — {summary}"
+            f"- {tone.title()} (Conf: {article.confidence:.2f}) | {source} | {date_str}: {article.headline} — {summary}"
         )
     return "\n".join(lines)
 
@@ -743,20 +778,37 @@ def _compose_weight_statement(
     )
 
 
-def _score_text(text: str) -> Tuple[str, int]:
+# --- CHANGED: Logic for FinBERT scoring ---
+def _score_text(text: str) -> Tuple[str, int, float]:
     cleaned = text.strip()
     if not cleaned:
-        return "neutral", 0
+        return "neutral", 0, 0.0
 
-    if _SENTIMENT_ANALYSER is None:
-        return "neutral", 0
+    analyzer = get_finbert_analyzer()
+    if analyzer is None:
+        return "neutral", 0, 0.0
 
-    compound = _SENTIMENT_ANALYSER.polarity_scores(cleaned)["compound"]
-    if compound >= 0.1:
-        return "positive", 1
-    if compound <= -0.1:
-        return "negative", -1
-    return "neutral", 0
+    try:
+        # Run inference
+        results = analyzer(cleaned)
+        # Result format: [{'label': 'positive', 'score': 0.95}]
+        top_result = results[0]
+        label = top_result['label'].lower()
+        confidence = float(top_result['score'])
+        
+        # Map FinBERT labels to the format expected by the rest of the agent
+        if label == "positive":
+            return "positive", 1, confidence
+        elif label == "negative":
+            return "negative", -1, confidence
+        else:
+            return "neutral", 0, confidence
+            
+    except Exception as e:
+        # Fail gracefully
+        print(f"[DEBUG] FinBERT inference error: {e}")
+        return "neutral", 0, 0.0
+# --- END CHANGES ---
 
 
 def _extract_publish_datetime(item: dict) -> Optional[datetime]:
