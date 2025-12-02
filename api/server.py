@@ -68,17 +68,33 @@ class StabilityRequest(BaseModel):
 
 
 class FinetuneRequest(BaseModel):
-    manifest_path: str = Field(..., description="Path to monthly_manifest.json")
+    manifest_path: str = "dataset_default/data_train_predict_custom/1_hy/monthly_manifest.json"
     save_dir: str = "./checkpoints"
-    device: str = "cuda:0"
+    device: str = "cpu"
     run_monthly_fine_tune: bool = True
     market: str = "custom"
     horizon: str = "1"
     relation_type: str = "hy"
-    fine_tune_steps: int = 5000
-    baseline_checkpoint: Optional[str] = None
+    fine_tune_steps: int = 1
+    baseline_checkpoint: Optional[str] = "checkpoints/baseline(1).zip"
     promotion_min_sharpe: float = 0.5
     promotion_max_drawdown: float = 0.2
+    resume_model_path: Optional[str] = "checkpoints/baseline(1).zip"
+    reward_net_path: Optional[str] = "checkpoints/reward_net_custom_20251202_164846.pt"
+    batch_size: int = 16
+    n_steps: int = 2048
+    num_stocks: int = 97
+    # PTR PPO arguments
+    ptr_mode: bool = True  # Enable PTR PPO for continual learning
+    ptr_coef: float = 0.1  # Coefficient for PTR loss (KL divergence penalty)
+    ptr_memory_size: int = 1000  # Maximum samples in PTR replay buffer
+    ptr_priority_type: str = "max"  # Replay buffer priority aggregation strategy
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{}]  # Empty object uses all defaults
+        }
+    }
 
 
 def _dataset_dir(req: InferenceRequest) -> Path:
@@ -367,6 +383,27 @@ def stability(req: StabilityRequest):
 @app.post("/finetune")
 def finetune(req: FinetuneRequest):
     try:
+        # Auto-detect num_stocks from a sample pickle file (same as main.py)
+        import pickle
+        data_dir = f'dataset_default/data_train_predict_{req.market}/{req.horizon}_{req.relation_type}/'
+        sample_files = [f for f in os.listdir(data_dir) if f.endswith('.pkl')]
+        if sample_files:
+            sample_path = os.path.join(data_dir, sample_files[0])
+            with open(sample_path, 'rb') as f:
+                sample_data = pickle.load(f)
+            num_stocks = sample_data['features'].shape[0]
+            print(f"Auto-detected num_stocks: {num_stocks}")
+        else:
+            raise ValueError(f"No pickle files found in {data_dir} to determine num_stocks")
+
+        # Load replay buffer if available (same as main.py)
+        replay_buffer = []
+        buffer_path = os.path.join(req.save_dir, f"replay_buffer_{req.market}.pkl")
+        if os.path.exists(buffer_path):
+            with open(buffer_path, "rb") as f:
+                replay_buffer = pickle.load(f)
+            print(f"Loaded replay buffer with {len(replay_buffer)} samples.")
+
         args = argparse.Namespace(
             device=req.device,
             model_name="SmartFolio",
@@ -375,9 +412,15 @@ def finetune(req: FinetuneRequest):
             ind_yn=True,
             pos_yn=True,
             neg_yn=True,
+            ptr_coef=req.ptr_coef,
+            ptr_memory_size=req.ptr_memory_size,
+            ptr_priority_type=req.ptr_priority_type,
+            batch_size=req.batch_size,
+            n_steps=req.n_steps,
+            tickers_file="tickers.csv",
             multi_reward_yn=True,
-            resume_model_path=None,
-            reward_net_path=None,
+            resume_model_path=req.resume_model_path,
+            reward_net_path=req.reward_net_path,
             fine_tune_steps=req.fine_tune_steps,
             save_dir=req.save_dir,
             baseline_checkpoint=req.baseline_checkpoint,
@@ -388,8 +431,8 @@ def finetune(req: FinetuneRequest):
             month_cutoff_days=None,
             min_month_days=10,
             expert_cache_path=None,
-            irl_epochs=50,
-            rl_timesteps=10000,
+            irl_epochs=5,
+            rl_timesteps=1,
             risk_score=0.5,
             dd_base_weight=1.0,
             dd_risk_factor=1.0,
@@ -400,9 +443,35 @@ def finetune(req: FinetuneRequest):
             pos=True,
             neg=True,
             relation="hy",
+            num_stocks=num_stocks,
+            lookback=30,
+            finrag_prior=None,
+            finrag_weights_path=None,
+            manifest=None,
+            ptr_mode=req.ptr_mode,
         )
-        ckpt = fine_tune_month(args, manifest_path=req.manifest_path)
-        return {"checkpoint": ckpt}
+        
+        # Call fine_tune_month (returns checkpoint path AND new replay samples)
+        checkpoint, new_samples = fine_tune_month(args, manifest_path=req.manifest_path, replay_buffer=replay_buffer)
+        
+        # Update replay buffer with new samples (same as main.py)
+        if new_samples:
+            replay_buffer.extend(new_samples)
+            max_buffer = req.ptr_memory_size
+            if len(replay_buffer) > max_buffer:
+                # Keep the most recent ones
+                replay_buffer = replay_buffer[-max_buffer:]
+            print(f"Replay buffer updated. Current size: {len(replay_buffer)}")
+            os.makedirs(req.save_dir, exist_ok=True)
+            with open(buffer_path, "wb") as f:
+                pickle.dump(replay_buffer, f)
+            print(f"Persisted replay buffer to {buffer_path}")
+        
+        return {
+            "checkpoint": checkpoint,
+            "replay_buffer_size": len(replay_buffer),
+            "new_samples_added": len(new_samples) if new_samples else 0,
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

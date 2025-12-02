@@ -66,7 +66,8 @@ def _copy_compatible_policy_weights(policy_module, loaded_state, checkpoint_path
             f"Skipped {len(skipped)} tensors from {checkpoint_path} due to shape mismatches."
             f" Examples: {preview}"
         )
-
+    if not skipped:
+        print("All loaded policy tensors matched successfully.")
     return matched
 
 def load_weights_into_new_model(
@@ -567,7 +568,7 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         )
 
     model.set_env(env_init)
-    model.learn(total_timesteps=getattr(args, "fine_tune_steps", 5000))
+    model.learn(total_timesteps=getattr(args, "fine_tune_steps", 1))
 
     new_replay_samples = []
     if getattr(args, "ptr_mode", False):
