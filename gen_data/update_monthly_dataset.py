@@ -59,6 +59,48 @@ except ImportError:
     )
 
 
+def _update_index_csv(df_raw: pd.DataFrame, market: str) -> None:
+    """
+    Update the index CSV with new daily returns for benchmark comparison.
+    Computes equal-weighted average daily return across all tickers.
+    """
+    try:
+        idx_dir = os.path.join(DATASET_DEFAULT_ROOT, "index_data")
+        os.makedirs(idx_dir, exist_ok=True)
+        idx_path = os.path.join(idx_dir, f"{market}_index.csv")
+        
+        # Compute daily return per ticker
+        df_idx = df_raw.copy()
+        if "prev_close" not in df_idx.columns:
+            df_idx = df_idx.sort_values(["kdcode", "dt"])
+            df_idx["prev_close"] = df_idx.groupby("kdcode")["close"].shift(1)
+            df_idx = df_idx.dropna(subset=["prev_close"])
+        
+        df_idx["daily_return"] = df_idx["close"] / df_idx["prev_close"] - 1
+        
+        # Equal-weighted average across tickers per day
+        new_index = df_idx.groupby("dt")["daily_return"].mean().reset_index()
+        new_index = new_index.rename(columns={"dt": "datetime"})
+        
+        # Load existing index and append new rows (avoid duplicates)
+        if os.path.exists(idx_path):
+            existing = pd.read_csv(idx_path)
+            existing_dates = set(existing["datetime"].tolist())
+            new_rows = new_index[~new_index["datetime"].isin(existing_dates)]
+            if not new_rows.empty:
+                combined = pd.concat([existing, new_rows], ignore_index=True)
+                combined = combined.sort_values("datetime").reset_index(drop=True)
+                combined.to_csv(idx_path, index=False)
+                print(f"Updated index CSV with {len(new_rows)} new dates")
+            else:
+                print("Index CSV already has all dates, no update needed")
+        else:
+            new_index.to_csv(idx_path, index=False)
+            print(f"Created index CSV with {len(new_index)} dates")
+    except Exception as e:
+        print(f"Warning: Failed to update index CSV: {e}")
+
+
 def get_existing_dates(data_dir: str) -> List[datetime]:
     """Scan pkl files in data_dir and return list of dates."""
     if not os.path.exists(data_dir):
@@ -285,6 +327,9 @@ def fetch_latest_month_data(
     
     if df_raw.empty:
         raise ValueError("No data returned from yfinance")
+    
+    # Update the index CSV with new month's daily returns (for benchmark comparison)
+    _update_index_csv(df_raw, market)
     
     # Process data (same as build_dataset_yf.py)
     df_lbl = get_label(df_raw, horizon=horizon)

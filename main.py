@@ -490,7 +490,19 @@ def fine_tune_month(args, manifest_path=None, bookkeeping_path=None, replay_buff
 
     # Evaluate the fine-tuned model on the monthly data for promotion decision
     print(f"Evaluating fine-tuned model for promotion gate...")
-    final_eval = model_predict(args, model, monthly_loader, split="finetune_eval")
+    
+    # Temporarily set test dates to the month's date range for model_predict
+    original_test_start = getattr(args, 'test_start_date', None)
+    original_test_end = getattr(args, 'test_end_date', None)
+    args.test_start_date = month_start
+    args.test_end_date = month_end
+    
+    try:
+        final_eval = model_predict(args, model, monthly_loader, split="finetune_eval")
+    finally:
+        # Restore original test dates
+        args.test_start_date = original_test_start
+        args.test_end_date = original_test_end
     
     promotion_decision = apply_promotion_gate(
         args,
@@ -774,7 +786,6 @@ if __name__ == '__main__':
 
     print("market:", args.market, "num_stocks:", args.num_stocks)
     if args.run_monthly_fine_tune:
-        manifest_path = args.manifest or None  # will resolve default inside fine_tune_month
         replay_buffer = []
         
         # Load initial buffer if available
@@ -783,42 +794,24 @@ if __name__ == '__main__':
             with open(buffer_path, "rb") as f:
                 replay_buffer = pickle.load(f)
             print(f"Loaded initial replay buffer with {len(replay_buffer)} samples.")
-            
-        while True:
-            try:
-                # Call fine_tune_month (returns path AND new samples)
-                checkpoint, new_samples = fine_tune_month(args, manifest_path=manifest_path, replay_buffer=replay_buffer)
-                print(f"Monthly fine-tuning complete. Checkpoint: {checkpoint}")
-                
-                # Update replay buffer with new samples
-                if new_samples:
-                    replay_buffer.extend(new_samples)
-                    max_buffer = getattr(args, "ptr_memory_size", 500)
-                    if len(replay_buffer) > max_buffer:
-                        # Keep the most recent ones
-                        replay_buffer = replay_buffer[-max_buffer:]
-                    print(f"Replay buffer updated. Current size: {len(replay_buffer)}")
-                    with open(buffer_path, "wb") as f:
-                        pickle.dump(replay_buffer, f)
-                    print(f"Persisted replay buffer to {buffer_path}")
-                
-                # Update resume_model_path so the next iteration picks up this model
-                args.resume_model_path = checkpoint
-
-                # Exit if user requested only a single specific month
-                if getattr(args, "fine_tune_month", None):
-                    print("Requested single-month fine-tune complete; exiting loop.")
-                    break
-            except RuntimeError as e:
-                # Stop when no more months are left
-                if "No unprocessed monthly shards" in str(e):
-                    print("All months processed.")
-                    break
-                if getattr(args, "fine_tune_month", None) and "Target month" in str(e):
-                    print(str(e))
-                    break
-                else:
-                    raise e
+        
+        # Call fine_tune_month once (fetches latest month and fine-tunes)
+        checkpoint, new_samples = fine_tune_month(args, replay_buffer=replay_buffer)
+        print(f"Monthly fine-tuning complete. Checkpoint: {checkpoint}")
+        
+        # Update replay buffer with new samples
+        if new_samples:
+            replay_buffer.extend(new_samples)
+            max_buffer = getattr(args, "ptr_memory_size", 500)
+            if len(replay_buffer) > max_buffer:
+                # Keep the most recent ones
+                replay_buffer = replay_buffer[-max_buffer:]
+            print(f"Replay buffer updated. Current size: {len(replay_buffer)}")
+            with open(buffer_path, "wb") as f:
+                pickle.dump(replay_buffer, f)
+            print(f"Persisted replay buffer to {buffer_path}")
+        # Update resume model path so that next run uses this checkpoint
+        args.resume_model_path = checkpoint
     else:
         trained_model = train_predict(args, predict_dt='2024-12-30')
         # save PPO model checkpoint
