@@ -306,6 +306,7 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
         if (not built):
             try:
                 from gen_data import update_monthly_dataset
+                print("hello in monthly dataset updater")
                 updater_args = argparse.Namespace(
                     market=args.market,
                     horizon=int(args.horizon),
@@ -329,9 +330,10 @@ def fine_tune_month(args, manifest_path="monthly_manifest.json", bookkeeping_pat
 
     with open(manifest_file, "r", encoding="utf-8") as fh:
         manifest = json.load(fh)
+        print("manifest file loaded")
 
     shards = manifest.get("monthly_shards", {})
-    print(shards)
+    print("shards", shards)
     # If manifest lacks shards, optionally discover them using Pathway temporal.session windowing.
     if (not shards) and getattr(args, "discover_months_with_pathway", False):
         base_dir_guess = manifest.get(
@@ -767,7 +769,7 @@ if __name__ == '__main__':
     parser.add_argument("--val_end_date", default="2023-12-29", help="End date for validation")
     parser.add_argument("--test_start_date", default="2024-01-02", help="Start date for testing")
     parser.add_argument("--test_end_date", default="2024-12-26", help="End date for testing")
-    parser.add_argument("tickers_file", default="tickers.csv", help="Path to CSV file containing list of tickers")
+    parser.add_argument("--tickers_file", default="tickers.csv", help="Path to CSV file containing list of tickers")
 
     args = parser.parse_args()
     args.market = 'custom'

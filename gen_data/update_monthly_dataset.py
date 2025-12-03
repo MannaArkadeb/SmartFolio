@@ -159,12 +159,56 @@ def _load_snapshot(path: str) -> pd.DataFrame:
     return df
 
 
-def _determine_next_month(manifest: Mapping[str, object], df: pd.DataFrame) -> Tuple[pd.Timestamp, pd.Timestamp]:
+def _find_latest_existing_date(data_dir: str) -> Optional[pd.Timestamp]:
+    """Inspect existing daily/monthly pkls to find the latest available date."""
+    latest: Optional[pd.Timestamp] = None
+
+    # Daily pkls in base_dir (YYYY-MM-DD.pkl)
+    for fname in os.listdir(data_dir):
+        if not fname.endswith(".pkl") or fname == MANIFEST_NAME:
+            continue
+        stem = os.path.splitext(fname)[0]
+        try:
+            dt = pd.to_datetime(stem)
+        except Exception:
+            continue
+        if latest is None or dt > latest:
+            latest = dt
+
+    # Monthly pkls (legacy bundles)
+    monthly_dir = os.path.join(data_dir, "monthly")
+    if os.path.isdir(monthly_dir):
+        for fname in os.listdir(monthly_dir):
+            if not fname.endswith(".pkl"):
+                continue
+            shard_path = os.path.join(monthly_dir, fname)
+            try:
+                cache = pickle.load(open(shard_path, "rb"))
+                dates = cache.get("dates") if isinstance(cache, dict) else None
+            except Exception:
+                continue
+            if dates:
+                try:
+                    dt_max = pd.to_datetime(max(dates))
+                except Exception:
+                    continue
+                if latest is None or dt_max > latest:
+                    latest = dt_max
+    return latest
+
+
+def _determine_next_month(
+    manifest: Mapping[str, object],
+    df: pd.DataFrame,
+    latest_existing: Optional[pd.Timestamp] = None,
+) -> Tuple[pd.Timestamp, pd.Timestamp]:
     """Return the first and last calendar day of the next month to process."""
 
     last_day_str = manifest.get("last_trading_day")
     if last_day_str:
         last_dt = pd.to_datetime(last_day_str)
+    elif latest_existing is not None:
+        last_dt = latest_existing
     else:
         last_dt = pd.to_datetime(df["dt"].max())
 
@@ -328,7 +372,8 @@ def run(args: argparse.Namespace) -> None:
     else:
         tickers = sorted(df_raw["kdcode"].unique().tolist())
 
-    next_month_start, next_month_end = _determine_next_month(manifest, df_raw)
+    latest_existing = _find_latest_existing_date(data_dir)
+    next_month_start, next_month_end = _determine_next_month(manifest, df_raw, latest_existing)
     print(f"Next month to process: {next_month_start.strftime('%Y-%m')}")
     month_tag = next_month_start.strftime("%Y-%m")
 
@@ -422,7 +467,7 @@ def run(args: argparse.Namespace) -> None:
     manifest["monthly_dir"] = os.path.join(data_dir, "monthly")
 
     _dump_manifest(manifest_path, manifest)
-    print(f"Saved monthly shard for {month_tag} with {len(valid_dates)} trading days -> {shard_path}")
+    print(f"Saved daily files for {month_tag} with {len(valid_dates)} trading days into {data_dir}")
 
 
 def build_parser() -> argparse.ArgumentParser:

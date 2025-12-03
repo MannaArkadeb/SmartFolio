@@ -305,6 +305,5 @@ def main(argv: Sequence[str] | None = None) -> None:
     with open(output_dir / "metrics.json", "w") as f:
         json.dump(history, f, indent=2)
 
-
 if __name__ == "__main__":
     main()
