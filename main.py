@@ -490,48 +490,13 @@ def fine_tune_month(args, manifest_path=None, bookkeeping_path=None, replay_buff
 
     # Evaluate the fine-tuned model on the monthly data for promotion decision
     print(f"Evaluating fine-tuned model for promotion gate...")
-    eval_records = []
-    env_snapshots = []
-    try:
-        # Create a fresh environment for evaluation
-        eval_env = create_env_init(args, data_loader=monthly_loader)
-        obs = eval_env.reset()
-        done = False
-        step_count = 0
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, info = eval_env.step(action)
-            step_count += 1
-            if step_count > len(monthly_dataset) * 2:  # Safety limit
-                break
-        
-        # Extract metrics from environment
-        env_ref = eval_env.envs[0] if hasattr(eval_env, "envs") else eval_env
-        metrics = {
-            "arr": getattr(env_ref, "ARR", None),
-            "avol": getattr(env_ref, "AVol", None),
-            "sharpe": getattr(env_ref, "sharpe", None),
-            "mdd": getattr(env_ref, "MDD", None),
-            "cr": getattr(env_ref, "CR", None),
-            "ir": getattr(env_ref, "IR", None),
-        }
-        record = create_metric_record(args, "finetune", metrics, 0)
-        eval_records.append(record)
-        env_snapshots.append((env_ref, record["run_id"]))
-        print(f"Evaluation metrics: Sharpe={metrics.get('sharpe')}, MDD={metrics.get('mdd')}")
-    except Exception as e:
-        print(f"Warning: Could not evaluate fine-tuned model: {e}")
-        metrics = {}
-
-    # Persist metrics and apply promotion gate
-    log_info = persist_metrics(eval_records, env_snapshots, args, "finetune", base_dir="logs/monthly")
-    summary_metrics = aggregate_metric_records(eval_records)
+    final_eval = model_predict(args, model, monthly_loader, split="finetune_eval")
     
     promotion_decision = apply_promotion_gate(
         args,
-        candidate_path=out_path,
-        summary_metrics=summary_metrics,
-        log_info=log_info,
+        out_path,
+        final_eval.get("summary"),
+        final_eval.get("log")
     )
     
     if promotion_decision.promoted:
@@ -676,14 +641,14 @@ if __name__ == '__main__':
     
     parser.add_argument("--expert_cache_path", default=None,
                         help="Optional path to cache expert trajectories for reuse")
-    parser.add_argument("--num_expert_trajectories", type=int, default=100,
+    parser.add_argument("--num_expert_trajectories", type=int, default=700,
                         help="Number of expert trajectories to generate for IRL pretraining")
-    parser.add_argument("--max_epochs", type=int, default=1, help="Number of IRL+RL epochs to run")
-    parser.add_argument("--batch_size", type=int, default=32, help="Training batch size for loaders and IRL")
+    parser.add_argument("--max_epochs", type=int, default=10, help="Number of IRL+RL epochs to run")
+    parser.add_argument("--batch_size", type=int, default=512, help="Training batch size for loaders and IRL")
     parser.add_argument("--finrag_weights_path", default=None,
                         help="Path to FinRAG weights JSON used to initialize the policy prior")
     # Training hyperparameters
-    parser.add_argument("--irl_epochs", type=int, default=50, help="Number of IRL training epochs")
+    parser.add_argument("--irl_epochs", type=int, default=30, help="Number of IRL training epochs")
     parser.add_argument("--rl_timesteps", type=int, default=10000, help="Number of RL timesteps for training")
     parser.add_argument(
         "--disable-tensorboard",
@@ -693,7 +658,7 @@ if __name__ == '__main__':
     parser.add_argument("--n_steps", type=int, default=2048, help="Rollout horizon (environment steps) per PPO update cycle")
 
     # Risk-adaptive reward parameters
-    parser.add_argument("--risk_score", type=float, default=0.5, help="User risk score: 0=conservative, 1=aggressive")
+    parser.add_argument("--risk_score", type=float, default=0.1, help="User risk score: 0=conservative, 1=aggressive")
     parser.add_argument("--dd_base_weight", type=float, default=1.0, help="Base weight for drawdown penalty")
     parser.add_argument("--dd_risk_factor", type=float, default=1.0, help="Risk factor k in β_dd(ρ) = β_base*(1+k*(1-ρ))")
 
@@ -705,12 +670,12 @@ if __name__ == '__main__':
     parser.add_argument("--ptr_priority_type", type=str, default="max", help="Replay buffer priority aggregation strategy")
 
     # Date ranges
-    parser.add_argument("--train_start_date", default="2020-01-06", help="Start date for training")
-    parser.add_argument("--train_end_date", default="2023-01-31", help="End date for training")
-    parser.add_argument("--val_start_date", default="2023-02-01", help="Start date for validation")
-    parser.add_argument("--val_end_date", default="2023-12-29", help="End date for validation")
+    parser.add_argument("--train_start_date", default="2016-01-02", help="Start date for training")
+    parser.add_argument("--train_end_date", default="2023-12-31", help="End date for training")
+    parser.add_argument("--val_start_date", default="2024-01-02", help="Start date for validation")
+    parser.add_argument("--val_end_date", default="2024-01-31", help="End date for validation")
     parser.add_argument("--test_start_date", default="2024-01-02", help="Start date for testing")
-    parser.add_argument("--test_end_date", default="2024-12-26", help="End date for testing")
+    parser.add_argument("--test_end_date", default="2024-12-31", help="End date for testing")
     parser.add_argument("--tickers_file", default="tickers.csv", help="Path to CSV file containing list of tickers")
 
     args = parser.parse_args()
