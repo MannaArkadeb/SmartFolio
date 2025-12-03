@@ -137,7 +137,26 @@ def group_and_norm(df: pd.DataFrame, base_cols: List[str], n_clusters: int) -> p
         cluster_features = group[base_cols].fillna(0)
         scaler = StandardScaler()
         features_scaled = scaler.fit_transform(cluster_features)
-        group["cluster"] = kmeans.fit_predict(features_scaled)
+        
+        # Handle case where n_samples < n_clusters
+        n_samples = len(group)
+        effective_clusters = min(n_clusters, n_samples)
+        
+        if effective_clusters < 2:
+            # If only 1 sample, can't cluster - just z-score to 0
+            for f in FEATURE_COLS:
+                group[f"{f}_normalized"] = 0.0
+            group["cluster"] = 0
+            result.append(group)
+            continue
+        
+        # Use adjusted number of clusters
+        if effective_clusters < n_clusters:
+            kmeans_adj = KMeans(n_clusters=effective_clusters, random_state=42)
+            group["cluster"] = kmeans_adj.fit_predict(features_scaled)
+        else:
+            group["cluster"] = kmeans.fit_predict(features_scaled)
+        
         # Merge tiny clusters into nearest
         group_sizes = group["cluster"].value_counts()
         small_clusters = group_sizes[group_sizes < 2].index
