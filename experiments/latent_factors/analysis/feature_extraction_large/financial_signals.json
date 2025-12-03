@@ -1,0 +1,1643 @@
+{
+  "summary": {
+    "total_signals": 53,
+    "unique_tickers": 21,
+    "alignment_r2": 0.5283768746196773,
+    "signal_types": {
+      "Volatility": 6,
+      "Price": 3,
+      "Liquidity": 5,
+      "Momentum": 39
+    },
+    "timeframes": {
+      "Swing (8-14d)": 25,
+      "Medium-term (4-7d)": 12,
+      "Short-term (1-3d)": 5,
+      "Position (15-20d)": 11
+    },
+    "top_tickers": [
+      [
+        "VOLTAS.NS",
+        337
+      ],
+      [
+        "SRF.NS",
+        103
+      ],
+      [
+        "IIFL.NS",
+        68
+      ],
+      [
+        "OIL.NS",
+        34
+      ],
+      [
+        "IRCON.NS",
+        33
+      ],
+      [
+        "MANAPPURAM.NS",
+        12
+      ],
+      [
+        "INDIGO.NS",
+        7
+      ],
+      [
+        "CDSL.NS",
+        7
+      ],
+      [
+        "BEML.NS",
+        7
+      ],
+      [
+        "DIXON.NS",
+        6
+      ]
+    ]
+  },
+  "signals_by_type": {
+    "Volatility": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "high",
+        "importance": 0.1562729775905609,
+        "description": "VOLTAS.NS high price level 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "high",
+        "importance": 0.11024370789527893,
+        "description": "SRF.NS high price level 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "low",
+        "importance": 0.10879194736480713,
+        "description": "SRF.NS low price level 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 8,
+        "feature": "low",
+        "importance": 0.09180430322885513,
+        "description": "IIFL.NS low price level 8 days ago",
+        "latent_id": 58
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "low",
+        "importance": 0.09016156941652298,
+        "description": "IIFL.NS low price level 11 days ago",
+        "latent_id": 65
+      },
+      {
+        "ticker": "BEML.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 9,
+        "feature": "low",
+        "importance": 0.07074163854122162,
+        "description": "BEML.NS low price level 9 days ago",
+        "latent_id": 57
+      }
+    ],
+    "Price": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Price",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "open",
+        "importance": 0.15507781505584717,
+        "description": "VOLTAS.NS open price 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Price",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 8,
+        "feature": "open",
+        "importance": 0.09004364907741547,
+        "description": "IIFL.NS open price 8 days ago",
+        "latent_id": 58
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "close",
+        "importance": 0.08576182276010513,
+        "description": "OIL.NS close price 20 days ago",
+        "latent_id": 61
+      }
+    ],
+    "Liquidity": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "volume",
+        "importance": 0.15213853120803833,
+        "description": "VOLTAS.NS volume activity 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "volume",
+        "importance": 0.11041475087404251,
+        "description": "SRF.NS volume activity 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "volume",
+        "importance": 0.0842476338148117,
+        "description": "OIL.NS volume activity 20 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 6,
+        "feature": "volume",
+        "importance": 0.0840887799859047,
+        "description": "OIL.NS volume activity 6 days ago",
+        "latent_id": 7
+      },
+      {
+        "ticker": "BEML.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 9,
+        "feature": "volume",
+        "importance": 0.06924764066934586,
+        "description": "BEML.NS volume activity 9 days ago",
+        "latent_id": 57
+      }
+    ],
+    "Momentum": [
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 7,
+        "feature": "returns",
+        "importance": 0.10250280797481537,
+        "description": "IRCON.NS price momentum 7 days ago",
+        "latent_id": 104
+      },
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 2,
+        "feature": "returns",
+        "importance": 0.09666933119297028,
+        "description": "IRCON.NS price momentum 2 days ago",
+        "latent_id": 65
+      },
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "returns",
+        "importance": 0.09253979474306107,
+        "description": "IRCON.NS price momentum 1 days ago",
+        "latent_id": 65
+      },
+      {
+        "ticker": "INDIGO.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.08459627628326416,
+        "description": "INDIGO.NS price momentum 5 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "MANAPPURAM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.08276978135108948,
+        "description": "MANAPPURAM.NS price momentum 5 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "INDIGO.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 14,
+        "feature": "returns",
+        "importance": 0.07055788487195969,
+        "description": "INDIGO.NS price momentum 14 days ago",
+        "latent_id": 24
+      },
+      {
+        "ticker": "MANAPPURAM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 18,
+        "feature": "returns",
+        "importance": 0.06926420331001282,
+        "description": "MANAPPURAM.NS price momentum 18 days ago",
+        "latent_id": 76
+      },
+      {
+        "ticker": "CDSL.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.06657411903142929,
+        "description": "CDSL.NS price momentum 5 days ago",
+        "latent_id": 44
+      },
+      {
+        "ticker": "MANAPPURAM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "returns",
+        "importance": 0.06562495231628418,
+        "description": "MANAPPURAM.NS price momentum 4 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "ASIANPAINT.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 13,
+        "feature": "returns",
+        "importance": 0.06317116320133209,
+        "description": "ASIANPAINT.NS price momentum 13 days ago",
+        "latent_id": 44
+      },
+      {
+        "ticker": "DIXON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 9,
+        "feature": "returns",
+        "importance": 0.06316468864679337,
+        "description": "DIXON.NS price momentum 9 days ago",
+        "latent_id": 70
+      },
+      {
+        "ticker": "CDSL.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "returns",
+        "importance": 0.06241393834352493,
+        "description": "CDSL.NS price momentum 20 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "CDSL.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.06237219274044037,
+        "description": "CDSL.NS price momentum 11 days ago",
+        "latent_id": 59
+      },
+      {
+        "ticker": "GOLDBEES.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 8,
+        "feature": "returns",
+        "importance": 0.06236821040511131,
+        "description": "GOLDBEES.NS price momentum 8 days ago",
+        "latent_id": 24
+      },
+      {
+        "ticker": "DIXON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "returns",
+        "importance": 0.06205527111887932,
+        "description": "DIXON.NS price momentum 16 days ago",
+        "latent_id": 39
+      },
+      {
+        "ticker": "SBIN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "returns",
+        "importance": 0.06101648509502411,
+        "description": "SBIN.NS price momentum 1 days ago",
+        "latent_id": 26
+      },
+      {
+        "ticker": "INDIGO.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 17,
+        "feature": "returns",
+        "importance": 0.060698237270116806,
+        "description": "INDIGO.NS price momentum 17 days ago",
+        "latent_id": 121
+      },
+      {
+        "ticker": "RAYMOND.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 7,
+        "feature": "returns",
+        "importance": 0.06013210862874985,
+        "description": "RAYMOND.NS price momentum 7 days ago",
+        "latent_id": 87
+      },
+      {
+        "ticker": "HAVELLS.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 6,
+        "feature": "returns",
+        "importance": 0.05964724346995354,
+        "description": "HAVELLS.NS price momentum 6 days ago",
+        "latent_id": 70
+      },
+      {
+        "ticker": "BHARATFORG.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "returns",
+        "importance": 0.0594949945807457,
+        "description": "BHARATFORG.NS price momentum 10 days ago",
+        "latent_id": 89
+      },
+      {
+        "ticker": "BEML.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 19,
+        "feature": "returns",
+        "importance": 0.05917767807841301,
+        "description": "BEML.NS price momentum 19 days ago",
+        "latent_id": 122
+      },
+      {
+        "ticker": "PRESTIGE.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "returns",
+        "importance": 0.05805540457367897,
+        "description": "PRESTIGE.NS price momentum 4 days ago",
+        "latent_id": 74
+      },
+      {
+        "ticker": "SBIN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 12,
+        "feature": "returns",
+        "importance": 0.057811301201581955,
+        "description": "SBIN.NS price momentum 12 days ago",
+        "latent_id": 104
+      },
+      {
+        "ticker": "TITAN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "returns",
+        "importance": 0.057246096432209015,
+        "description": "TITAN.NS price momentum 4 days ago",
+        "latent_id": 27
+      },
+      {
+        "ticker": "TITAN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "returns",
+        "importance": 0.056534722447395325,
+        "description": "TITAN.NS price momentum 20 days ago",
+        "latent_id": 63
+      },
+      {
+        "ticker": "BATAINDIA.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "returns",
+        "importance": 0.05634032562375069,
+        "description": "BATAINDIA.NS price momentum 20 days ago",
+        "latent_id": 5
+      },
+      {
+        "ticker": "RAYMOND.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.055628642439842224,
+        "description": "RAYMOND.NS price momentum 11 days ago",
+        "latent_id": 73
+      },
+      {
+        "ticker": "SBIN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.054953403770923615,
+        "description": "SBIN.NS price momentum 11 days ago",
+        "latent_id": 104
+      },
+      {
+        "ticker": "TITAN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "returns",
+        "importance": 0.0549098439514637,
+        "description": "TITAN.NS price momentum 16 days ago",
+        "latent_id": 63
+      },
+      {
+        "ticker": "HAVELLS.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 17,
+        "feature": "returns",
+        "importance": 0.054752133786678314,
+        "description": "HAVELLS.NS price momentum 17 days ago",
+        "latent_id": 89
+      },
+      {
+        "ticker": "DIXON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 14,
+        "feature": "returns",
+        "importance": 0.054615579545497894,
+        "description": "DIXON.NS price momentum 14 days ago",
+        "latent_id": 5
+      },
+      {
+        "ticker": "GOLDBEES.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.05380067229270935,
+        "description": "GOLDBEES.NS price momentum 11 days ago",
+        "latent_id": 108
+      },
+      {
+        "ticker": "RAYMOND.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "returns",
+        "importance": 0.05337085202336311,
+        "description": "RAYMOND.NS price momentum 1 days ago",
+        "latent_id": 43
+      },
+      {
+        "ticker": "PRESTIGE.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 13,
+        "feature": "returns",
+        "importance": 0.05324363335967064,
+        "description": "PRESTIGE.NS price momentum 13 days ago",
+        "latent_id": 99
+      },
+      {
+        "ticker": "PRESTIGE.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 6,
+        "feature": "returns",
+        "importance": 0.052761491388082504,
+        "description": "PRESTIGE.NS price momentum 6 days ago",
+        "latent_id": 74
+      },
+      {
+        "ticker": "TATACOMM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.05257698893547058,
+        "description": "TATACOMM.NS price momentum 5 days ago",
+        "latent_id": 87
+      },
+      {
+        "ticker": "TATACOMM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 13,
+        "feature": "returns",
+        "importance": 0.05224500969052315,
+        "description": "TATACOMM.NS price momentum 13 days ago",
+        "latent_id": 120
+      },
+      {
+        "ticker": "GOLDBEES.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 3,
+        "feature": "returns",
+        "importance": 0.05053460970520973,
+        "description": "GOLDBEES.NS price momentum 3 days ago",
+        "latent_id": 59
+      },
+      {
+        "ticker": "ICICIBANK.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.05004623159766197,
+        "description": "ICICIBANK.NS price momentum 11 days ago",
+        "latent_id": 111
+      }
+    ]
+  },
+  "signals_by_timeframe": {
+    "Swing (8-14d)": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "high",
+        "importance": 0.1562729775905609,
+        "description": "VOLTAS.NS high price level 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Price",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "open",
+        "importance": 0.15507781505584717,
+        "description": "VOLTAS.NS open price 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "volume",
+        "importance": 0.15213853120803833,
+        "description": "VOLTAS.NS volume activity 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "volume",
+        "importance": 0.11041475087404251,
+        "description": "SRF.NS volume activity 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "high",
+        "importance": 0.11024370789527893,
+        "description": "SRF.NS high price level 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "low",
+        "importance": 0.10879194736480713,
+        "description": "SRF.NS low price level 10 days ago",
+        "latent_id": 115
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 8,
+        "feature": "low",
+        "importance": 0.09180430322885513,
+        "description": "IIFL.NS low price level 8 days ago",
+        "latent_id": 58
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "low",
+        "importance": 0.09016156941652298,
+        "description": "IIFL.NS low price level 11 days ago",
+        "latent_id": 65
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Price",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 8,
+        "feature": "open",
+        "importance": 0.09004364907741547,
+        "description": "IIFL.NS open price 8 days ago",
+        "latent_id": 58
+      },
+      {
+        "ticker": "BEML.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 9,
+        "feature": "low",
+        "importance": 0.07074163854122162,
+        "description": "BEML.NS low price level 9 days ago",
+        "latent_id": 57
+      },
+      {
+        "ticker": "INDIGO.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 14,
+        "feature": "returns",
+        "importance": 0.07055788487195969,
+        "description": "INDIGO.NS price momentum 14 days ago",
+        "latent_id": 24
+      },
+      {
+        "ticker": "BEML.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 9,
+        "feature": "volume",
+        "importance": 0.06924764066934586,
+        "description": "BEML.NS volume activity 9 days ago",
+        "latent_id": 57
+      },
+      {
+        "ticker": "ASIANPAINT.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 13,
+        "feature": "returns",
+        "importance": 0.06317116320133209,
+        "description": "ASIANPAINT.NS price momentum 13 days ago",
+        "latent_id": 44
+      },
+      {
+        "ticker": "DIXON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 9,
+        "feature": "returns",
+        "importance": 0.06316468864679337,
+        "description": "DIXON.NS price momentum 9 days ago",
+        "latent_id": 70
+      },
+      {
+        "ticker": "CDSL.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.06237219274044037,
+        "description": "CDSL.NS price momentum 11 days ago",
+        "latent_id": 59
+      },
+      {
+        "ticker": "GOLDBEES.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 8,
+        "feature": "returns",
+        "importance": 0.06236821040511131,
+        "description": "GOLDBEES.NS price momentum 8 days ago",
+        "latent_id": 24
+      },
+      {
+        "ticker": "BHARATFORG.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 10,
+        "feature": "returns",
+        "importance": 0.0594949945807457,
+        "description": "BHARATFORG.NS price momentum 10 days ago",
+        "latent_id": 89
+      },
+      {
+        "ticker": "SBIN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 12,
+        "feature": "returns",
+        "importance": 0.057811301201581955,
+        "description": "SBIN.NS price momentum 12 days ago",
+        "latent_id": 104
+      },
+      {
+        "ticker": "RAYMOND.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.055628642439842224,
+        "description": "RAYMOND.NS price momentum 11 days ago",
+        "latent_id": 73
+      },
+      {
+        "ticker": "SBIN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.054953403770923615,
+        "description": "SBIN.NS price momentum 11 days ago",
+        "latent_id": 104
+      },
+      {
+        "ticker": "DIXON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 14,
+        "feature": "returns",
+        "importance": 0.054615579545497894,
+        "description": "DIXON.NS price momentum 14 days ago",
+        "latent_id": 5
+      },
+      {
+        "ticker": "GOLDBEES.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.05380067229270935,
+        "description": "GOLDBEES.NS price momentum 11 days ago",
+        "latent_id": 108
+      },
+      {
+        "ticker": "PRESTIGE.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 13,
+        "feature": "returns",
+        "importance": 0.05324363335967064,
+        "description": "PRESTIGE.NS price momentum 13 days ago",
+        "latent_id": 99
+      },
+      {
+        "ticker": "TATACOMM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 13,
+        "feature": "returns",
+        "importance": 0.05224500969052315,
+        "description": "TATACOMM.NS price momentum 13 days ago",
+        "latent_id": 120
+      },
+      {
+        "ticker": "ICICIBANK.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Swing (8-14d)",
+        "lag_days": 11,
+        "feature": "returns",
+        "importance": 0.05004623159766197,
+        "description": "ICICIBANK.NS price momentum 11 days ago",
+        "latent_id": 111
+      }
+    ],
+    "Medium-term (4-7d)": [
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 7,
+        "feature": "returns",
+        "importance": 0.10250280797481537,
+        "description": "IRCON.NS price momentum 7 days ago",
+        "latent_id": 104
+      },
+      {
+        "ticker": "INDIGO.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.08459627628326416,
+        "description": "INDIGO.NS price momentum 5 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 6,
+        "feature": "volume",
+        "importance": 0.0840887799859047,
+        "description": "OIL.NS volume activity 6 days ago",
+        "latent_id": 7
+      },
+      {
+        "ticker": "MANAPPURAM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.08276978135108948,
+        "description": "MANAPPURAM.NS price momentum 5 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "CDSL.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.06657411903142929,
+        "description": "CDSL.NS price momentum 5 days ago",
+        "latent_id": 44
+      },
+      {
+        "ticker": "MANAPPURAM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "returns",
+        "importance": 0.06562495231628418,
+        "description": "MANAPPURAM.NS price momentum 4 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "RAYMOND.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 7,
+        "feature": "returns",
+        "importance": 0.06013210862874985,
+        "description": "RAYMOND.NS price momentum 7 days ago",
+        "latent_id": 87
+      },
+      {
+        "ticker": "HAVELLS.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 6,
+        "feature": "returns",
+        "importance": 0.05964724346995354,
+        "description": "HAVELLS.NS price momentum 6 days ago",
+        "latent_id": 70
+      },
+      {
+        "ticker": "PRESTIGE.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "returns",
+        "importance": 0.05805540457367897,
+        "description": "PRESTIGE.NS price momentum 4 days ago",
+        "latent_id": 74
+      },
+      {
+        "ticker": "TITAN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "returns",
+        "importance": 0.057246096432209015,
+        "description": "TITAN.NS price momentum 4 days ago",
+        "latent_id": 27
+      },
+      {
+        "ticker": "PRESTIGE.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 6,
+        "feature": "returns",
+        "importance": 0.052761491388082504,
+        "description": "PRESTIGE.NS price momentum 6 days ago",
+        "latent_id": 74
+      },
+      {
+        "ticker": "TATACOMM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "returns",
+        "importance": 0.05257698893547058,
+        "description": "TATACOMM.NS price momentum 5 days ago",
+        "latent_id": 87
+      }
+    ],
+    "Short-term (1-3d)": [
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 2,
+        "feature": "returns",
+        "importance": 0.09666933119297028,
+        "description": "IRCON.NS price momentum 2 days ago",
+        "latent_id": 65
+      },
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "returns",
+        "importance": 0.09253979474306107,
+        "description": "IRCON.NS price momentum 1 days ago",
+        "latent_id": 65
+      },
+      {
+        "ticker": "SBIN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "returns",
+        "importance": 0.06101648509502411,
+        "description": "SBIN.NS price momentum 1 days ago",
+        "latent_id": 26
+      },
+      {
+        "ticker": "RAYMOND.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "returns",
+        "importance": 0.05337085202336311,
+        "description": "RAYMOND.NS price momentum 1 days ago",
+        "latent_id": 43
+      },
+      {
+        "ticker": "GOLDBEES.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 3,
+        "feature": "returns",
+        "importance": 0.05053460970520973,
+        "description": "GOLDBEES.NS price momentum 3 days ago",
+        "latent_id": 59
+      }
+    ],
+    "Position (15-20d)": [
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "close",
+        "importance": 0.08576182276010513,
+        "description": "OIL.NS close price 20 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "volume",
+        "importance": 0.0842476338148117,
+        "description": "OIL.NS volume activity 20 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "MANAPPURAM.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 18,
+        "feature": "returns",
+        "importance": 0.06926420331001282,
+        "description": "MANAPPURAM.NS price momentum 18 days ago",
+        "latent_id": 76
+      },
+      {
+        "ticker": "CDSL.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "returns",
+        "importance": 0.06241393834352493,
+        "description": "CDSL.NS price momentum 20 days ago",
+        "latent_id": 83
+      },
+      {
+        "ticker": "DIXON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "returns",
+        "importance": 0.06205527111887932,
+        "description": "DIXON.NS price momentum 16 days ago",
+        "latent_id": 39
+      },
+      {
+        "ticker": "INDIGO.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 17,
+        "feature": "returns",
+        "importance": 0.060698237270116806,
+        "description": "INDIGO.NS price momentum 17 days ago",
+        "latent_id": 121
+      },
+      {
+        "ticker": "BEML.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 19,
+        "feature": "returns",
+        "importance": 0.05917767807841301,
+        "description": "BEML.NS price momentum 19 days ago",
+        "latent_id": 122
+      },
+      {
+        "ticker": "TITAN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "returns",
+        "importance": 0.056534722447395325,
+        "description": "TITAN.NS price momentum 20 days ago",
+        "latent_id": 63
+      },
+      {
+        "ticker": "BATAINDIA.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "returns",
+        "importance": 0.05634032562375069,
+        "description": "BATAINDIA.NS price momentum 20 days ago",
+        "latent_id": 5
+      },
+      {
+        "ticker": "TITAN.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "returns",
+        "importance": 0.0549098439514637,
+        "description": "TITAN.NS price momentum 16 days ago",
+        "latent_id": 63
+      },
+      {
+        "ticker": "HAVELLS.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 17,
+        "feature": "returns",
+        "importance": 0.054752133786678314,
+        "description": "HAVELLS.NS price momentum 17 days ago",
+        "latent_id": 89
+      }
+    ]
+  },
+  "all_signals": [
+    {
+      "ticker": "VOLTAS.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "high",
+      "importance": 0.1562729775905609,
+      "description": "VOLTAS.NS high price level 10 days ago",
+      "latent_id": 115
+    },
+    {
+      "ticker": "VOLTAS.NS",
+      "signal_type": "Price",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "open",
+      "importance": 0.15507781505584717,
+      "description": "VOLTAS.NS open price 10 days ago",
+      "latent_id": 115
+    },
+    {
+      "ticker": "VOLTAS.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "volume",
+      "importance": 0.15213853120803833,
+      "description": "VOLTAS.NS volume activity 10 days ago",
+      "latent_id": 115
+    },
+    {
+      "ticker": "SRF.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "volume",
+      "importance": 0.11041475087404251,
+      "description": "SRF.NS volume activity 10 days ago",
+      "latent_id": 115
+    },
+    {
+      "ticker": "SRF.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "high",
+      "importance": 0.11024370789527893,
+      "description": "SRF.NS high price level 10 days ago",
+      "latent_id": 115
+    },
+    {
+      "ticker": "SRF.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "low",
+      "importance": 0.10879194736480713,
+      "description": "SRF.NS low price level 10 days ago",
+      "latent_id": 115
+    },
+    {
+      "ticker": "IRCON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 7,
+      "feature": "returns",
+      "importance": 0.10250280797481537,
+      "description": "IRCON.NS price momentum 7 days ago",
+      "latent_id": 104
+    },
+    {
+      "ticker": "IRCON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 2,
+      "feature": "returns",
+      "importance": 0.09666933119297028,
+      "description": "IRCON.NS price momentum 2 days ago",
+      "latent_id": 65
+    },
+    {
+      "ticker": "IRCON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 1,
+      "feature": "returns",
+      "importance": 0.09253979474306107,
+      "description": "IRCON.NS price momentum 1 days ago",
+      "latent_id": 65
+    },
+    {
+      "ticker": "IIFL.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 8,
+      "feature": "low",
+      "importance": 0.09180430322885513,
+      "description": "IIFL.NS low price level 8 days ago",
+      "latent_id": 58
+    },
+    {
+      "ticker": "IIFL.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 11,
+      "feature": "low",
+      "importance": 0.09016156941652298,
+      "description": "IIFL.NS low price level 11 days ago",
+      "latent_id": 65
+    },
+    {
+      "ticker": "IIFL.NS",
+      "signal_type": "Price",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 8,
+      "feature": "open",
+      "importance": 0.09004364907741547,
+      "description": "IIFL.NS open price 8 days ago",
+      "latent_id": 58
+    },
+    {
+      "ticker": "OIL.NS",
+      "signal_type": "Price",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "close",
+      "importance": 0.08576182276010513,
+      "description": "OIL.NS close price 20 days ago",
+      "latent_id": 61
+    },
+    {
+      "ticker": "INDIGO.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 5,
+      "feature": "returns",
+      "importance": 0.08459627628326416,
+      "description": "INDIGO.NS price momentum 5 days ago",
+      "latent_id": 83
+    },
+    {
+      "ticker": "OIL.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "volume",
+      "importance": 0.0842476338148117,
+      "description": "OIL.NS volume activity 20 days ago",
+      "latent_id": 61
+    },
+    {
+      "ticker": "OIL.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 6,
+      "feature": "volume",
+      "importance": 0.0840887799859047,
+      "description": "OIL.NS volume activity 6 days ago",
+      "latent_id": 7
+    },
+    {
+      "ticker": "MANAPPURAM.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 5,
+      "feature": "returns",
+      "importance": 0.08276978135108948,
+      "description": "MANAPPURAM.NS price momentum 5 days ago",
+      "latent_id": 83
+    },
+    {
+      "ticker": "BEML.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 9,
+      "feature": "low",
+      "importance": 0.07074163854122162,
+      "description": "BEML.NS low price level 9 days ago",
+      "latent_id": 57
+    },
+    {
+      "ticker": "INDIGO.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 14,
+      "feature": "returns",
+      "importance": 0.07055788487195969,
+      "description": "INDIGO.NS price momentum 14 days ago",
+      "latent_id": 24
+    },
+    {
+      "ticker": "MANAPPURAM.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 18,
+      "feature": "returns",
+      "importance": 0.06926420331001282,
+      "description": "MANAPPURAM.NS price momentum 18 days ago",
+      "latent_id": 76
+    },
+    {
+      "ticker": "BEML.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 9,
+      "feature": "volume",
+      "importance": 0.06924764066934586,
+      "description": "BEML.NS volume activity 9 days ago",
+      "latent_id": 57
+    },
+    {
+      "ticker": "CDSL.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 5,
+      "feature": "returns",
+      "importance": 0.06657411903142929,
+      "description": "CDSL.NS price momentum 5 days ago",
+      "latent_id": 44
+    },
+    {
+      "ticker": "MANAPPURAM.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 4,
+      "feature": "returns",
+      "importance": 0.06562495231628418,
+      "description": "MANAPPURAM.NS price momentum 4 days ago",
+      "latent_id": 83
+    },
+    {
+      "ticker": "ASIANPAINT.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 13,
+      "feature": "returns",
+      "importance": 0.06317116320133209,
+      "description": "ASIANPAINT.NS price momentum 13 days ago",
+      "latent_id": 44
+    },
+    {
+      "ticker": "DIXON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 9,
+      "feature": "returns",
+      "importance": 0.06316468864679337,
+      "description": "DIXON.NS price momentum 9 days ago",
+      "latent_id": 70
+    },
+    {
+      "ticker": "CDSL.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "returns",
+      "importance": 0.06241393834352493,
+      "description": "CDSL.NS price momentum 20 days ago",
+      "latent_id": 83
+    },
+    {
+      "ticker": "CDSL.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 11,
+      "feature": "returns",
+      "importance": 0.06237219274044037,
+      "description": "CDSL.NS price momentum 11 days ago",
+      "latent_id": 59
+    },
+    {
+      "ticker": "GOLDBEES.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 8,
+      "feature": "returns",
+      "importance": 0.06236821040511131,
+      "description": "GOLDBEES.NS price momentum 8 days ago",
+      "latent_id": 24
+    },
+    {
+      "ticker": "DIXON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 16,
+      "feature": "returns",
+      "importance": 0.06205527111887932,
+      "description": "DIXON.NS price momentum 16 days ago",
+      "latent_id": 39
+    },
+    {
+      "ticker": "SBIN.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 1,
+      "feature": "returns",
+      "importance": 0.06101648509502411,
+      "description": "SBIN.NS price momentum 1 days ago",
+      "latent_id": 26
+    },
+    {
+      "ticker": "INDIGO.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 17,
+      "feature": "returns",
+      "importance": 0.060698237270116806,
+      "description": "INDIGO.NS price momentum 17 days ago",
+      "latent_id": 121
+    },
+    {
+      "ticker": "RAYMOND.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 7,
+      "feature": "returns",
+      "importance": 0.06013210862874985,
+      "description": "RAYMOND.NS price momentum 7 days ago",
+      "latent_id": 87
+    },
+    {
+      "ticker": "HAVELLS.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 6,
+      "feature": "returns",
+      "importance": 0.05964724346995354,
+      "description": "HAVELLS.NS price momentum 6 days ago",
+      "latent_id": 70
+    },
+    {
+      "ticker": "BHARATFORG.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 10,
+      "feature": "returns",
+      "importance": 0.0594949945807457,
+      "description": "BHARATFORG.NS price momentum 10 days ago",
+      "latent_id": 89
+    },
+    {
+      "ticker": "BEML.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 19,
+      "feature": "returns",
+      "importance": 0.05917767807841301,
+      "description": "BEML.NS price momentum 19 days ago",
+      "latent_id": 122
+    },
+    {
+      "ticker": "PRESTIGE.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 4,
+      "feature": "returns",
+      "importance": 0.05805540457367897,
+      "description": "PRESTIGE.NS price momentum 4 days ago",
+      "latent_id": 74
+    },
+    {
+      "ticker": "SBIN.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 12,
+      "feature": "returns",
+      "importance": 0.057811301201581955,
+      "description": "SBIN.NS price momentum 12 days ago",
+      "latent_id": 104
+    },
+    {
+      "ticker": "TITAN.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 4,
+      "feature": "returns",
+      "importance": 0.057246096432209015,
+      "description": "TITAN.NS price momentum 4 days ago",
+      "latent_id": 27
+    },
+    {
+      "ticker": "TITAN.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "returns",
+      "importance": 0.056534722447395325,
+      "description": "TITAN.NS price momentum 20 days ago",
+      "latent_id": 63
+    },
+    {
+      "ticker": "BATAINDIA.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "returns",
+      "importance": 0.05634032562375069,
+      "description": "BATAINDIA.NS price momentum 20 days ago",
+      "latent_id": 5
+    },
+    {
+      "ticker": "RAYMOND.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 11,
+      "feature": "returns",
+      "importance": 0.055628642439842224,
+      "description": "RAYMOND.NS price momentum 11 days ago",
+      "latent_id": 73
+    },
+    {
+      "ticker": "SBIN.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 11,
+      "feature": "returns",
+      "importance": 0.054953403770923615,
+      "description": "SBIN.NS price momentum 11 days ago",
+      "latent_id": 104
+    },
+    {
+      "ticker": "TITAN.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 16,
+      "feature": "returns",
+      "importance": 0.0549098439514637,
+      "description": "TITAN.NS price momentum 16 days ago",
+      "latent_id": 63
+    },
+    {
+      "ticker": "HAVELLS.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 17,
+      "feature": "returns",
+      "importance": 0.054752133786678314,
+      "description": "HAVELLS.NS price momentum 17 days ago",
+      "latent_id": 89
+    },
+    {
+      "ticker": "DIXON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 14,
+      "feature": "returns",
+      "importance": 0.054615579545497894,
+      "description": "DIXON.NS price momentum 14 days ago",
+      "latent_id": 5
+    },
+    {
+      "ticker": "GOLDBEES.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 11,
+      "feature": "returns",
+      "importance": 0.05380067229270935,
+      "description": "GOLDBEES.NS price momentum 11 days ago",
+      "latent_id": 108
+    },
+    {
+      "ticker": "RAYMOND.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 1,
+      "feature": "returns",
+      "importance": 0.05337085202336311,
+      "description": "RAYMOND.NS price momentum 1 days ago",
+      "latent_id": 43
+    },
+    {
+      "ticker": "PRESTIGE.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Swing (8-14d)",
+      "lag_days": 13,
+      "feature": "returns",
+      "importance": 0.05324363335967064,
+      "description": "PRESTIGE.NS price momentum 13 days ago",
+      "latent_id": 99
+    },
+    {
+      "ticker": "PRESTIGE.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 6,
+      "feature": "returns",
+      "importance": 0.052761491388082504,
+      "description": "PRESTIGE.NS price momentum 6 days ago",
+      "latent_id": 74
+    },
+    {
+      "ticker": "TATACOMM.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 5,
+      "feature": "returns",
+      "importance": 0.05257698893547058,
+      "description": "TATACOMM.NS price momentum 5 days ago",
+      "latent_id": 87
+    }
+  ]
+}

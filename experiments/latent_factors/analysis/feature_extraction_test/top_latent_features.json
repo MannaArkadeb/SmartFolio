@@ -1,0 +1,407 @@
+{
+  "model_r2": 0.5236476280252736,
+  "total_features": 146,
+  "unique_tickers": 67,
+  "features": [
+    {
+      "latent": 46,
+      "ticker": "VOLTAS.NS",
+      "lag": "t-16",
+      "feature": "low",
+      "weight": 0.08255864679813385,
+      "full_name": "VOLTAS.NS_t-16_low"
+    },
+    {
+      "latent": 46,
+      "ticker": "VOLTAS.NS",
+      "lag": "t-16",
+      "feature": "volume",
+      "weight": 0.08073578029870987,
+      "full_name": "VOLTAS.NS_t-16_volume"
+    },
+    {
+      "latent": 103,
+      "ticker": "VOLTAS.NS",
+      "lag": "t-20",
+      "feature": "high",
+      "weight": 0.07906632870435715,
+      "full_name": "VOLTAS.NS_t-20_high"
+    },
+    {
+      "latent": 61,
+      "ticker": "OIL.NS",
+      "lag": "t-2",
+      "feature": "high",
+      "weight": 0.07695439457893372,
+      "full_name": "OIL.NS_t-2_high"
+    },
+    {
+      "latent": 61,
+      "ticker": "OIL.NS",
+      "lag": "t-1",
+      "feature": "high",
+      "weight": 0.07571254670619965,
+      "full_name": "OIL.NS_t-1_high"
+    },
+    {
+      "latent": 61,
+      "ticker": "OIL.NS",
+      "lag": "t-1",
+      "feature": "volume",
+      "weight": 0.07481808215379715,
+      "full_name": "OIL.NS_t-1_volume"
+    },
+    {
+      "latent": 103,
+      "ticker": "SRF.NS",
+      "lag": "t-20",
+      "feature": "close",
+      "weight": 0.07100415974855423,
+      "full_name": "SRF.NS_t-20_close"
+    },
+    {
+      "latent": 78,
+      "ticker": "SRF.NS",
+      "lag": "t-5",
+      "feature": "low",
+      "weight": 0.0676352009177208,
+      "full_name": "SRF.NS_t-5_low"
+    },
+    {
+      "latent": 122,
+      "ticker": "SRF.NS",
+      "lag": "t-4",
+      "feature": "high",
+      "weight": 0.06642497330904007,
+      "full_name": "SRF.NS_t-4_high"
+    },
+    {
+      "latent": 0,
+      "ticker": "IIFL.NS",
+      "lag": "t-16",
+      "feature": "open",
+      "weight": 0.05713985115289688,
+      "full_name": "IIFL.NS_t-16_open"
+    },
+    {
+      "latent": 85,
+      "ticker": "IIFL.NS",
+      "lag": "t-20",
+      "feature": "open",
+      "weight": 0.0569874532520771,
+      "full_name": "IIFL.NS_t-20_open"
+    },
+    {
+      "latent": 85,
+      "ticker": "IIFL.NS",
+      "lag": "t-20",
+      "feature": "volume",
+      "weight": 0.05654872581362724,
+      "full_name": "IIFL.NS_t-20_volume"
+    },
+    {
+      "latent": 19,
+      "ticker": "NESTLEIND.NS",
+      "lag": "t-4",
+      "feature": "volume",
+      "weight": 0.05134991183876991,
+      "full_name": "NESTLEIND.NS_t-4_volume"
+    },
+    {
+      "latent": 120,
+      "ticker": "IRCON.NS",
+      "lag": "t-15",
+      "feature": "returns",
+      "weight": 0.051073405891656876,
+      "full_name": "IRCON.NS_t-15_returns"
+    },
+    {
+      "latent": 76,
+      "ticker": "BEML.NS",
+      "lag": "t-20",
+      "feature": "open",
+      "weight": 0.04702053591609001,
+      "full_name": "BEML.NS_t-20_open"
+    },
+    {
+      "latent": 33,
+      "ticker": "IRCON.NS",
+      "lag": "t-12",
+      "feature": "returns",
+      "weight": 0.04682514816522598,
+      "full_name": "IRCON.NS_t-12_returns"
+    },
+    {
+      "latent": 63,
+      "ticker": "IRCON.NS",
+      "lag": "t-7",
+      "feature": "returns",
+      "weight": 0.04635686054825783,
+      "full_name": "IRCON.NS_t-7_returns"
+    },
+    {
+      "latent": 89,
+      "ticker": "BHARTIARTL.NS",
+      "lag": "t-14",
+      "feature": "low",
+      "weight": 0.0450410470366478,
+      "full_name": "BHARTIARTL.NS_t-14_low"
+    },
+    {
+      "latent": 114,
+      "ticker": "BEML.NS",
+      "lag": "t-20",
+      "feature": "volume",
+      "weight": 0.0444951169192791,
+      "full_name": "BEML.NS_t-20_volume"
+    },
+    {
+      "latent": 33,
+      "ticker": "ASIANPAINT.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.041767414659261703,
+      "full_name": "ASIANPAINT.NS_t-13_returns"
+    },
+    {
+      "latent": 5,
+      "ticker": "M&M.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.041651610285043716,
+      "full_name": "M&M.NS_t-13_returns"
+    },
+    {
+      "latent": 59,
+      "ticker": "TATASTEEL.NS",
+      "lag": "t-2",
+      "feature": "returns",
+      "weight": 0.041290849447250366,
+      "full_name": "TATASTEEL.NS_t-2_returns"
+    },
+    {
+      "latent": 44,
+      "ticker": "NESTLEIND.NS",
+      "lag": "t-7",
+      "feature": "volume",
+      "weight": 0.04123682901263237,
+      "full_name": "NESTLEIND.NS_t-7_volume"
+    },
+    {
+      "latent": 7,
+      "ticker": "HAVELLS.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.04119470342993736,
+      "full_name": "HAVELLS.NS_t-13_returns"
+    },
+    {
+      "latent": 109,
+      "ticker": "ICICIBANK.NS",
+      "lag": "t-18",
+      "feature": "returns",
+      "weight": 0.04111137241125107,
+      "full_name": "ICICIBANK.NS_t-18_returns"
+    },
+    {
+      "latent": 5,
+      "ticker": "BEML.NS",
+      "lag": "t-3",
+      "feature": "high",
+      "weight": 0.041071485728025436,
+      "full_name": "BEML.NS_t-3_high"
+    },
+    {
+      "latent": 94,
+      "ticker": "CDSL.NS",
+      "lag": "t-4",
+      "feature": "returns",
+      "weight": 0.040857668966054916,
+      "full_name": "CDSL.NS_t-4_returns"
+    },
+    {
+      "latent": 83,
+      "ticker": "ICICIBANK.NS",
+      "lag": "t-2",
+      "feature": "returns",
+      "weight": 0.04067017883062363,
+      "full_name": "ICICIBANK.NS_t-2_returns"
+    },
+    {
+      "latent": 44,
+      "ticker": "HAVELLS.NS",
+      "lag": "t-5",
+      "feature": "returns",
+      "weight": 0.04013049229979515,
+      "full_name": "HAVELLS.NS_t-5_returns"
+    },
+    {
+      "latent": 3,
+      "ticker": "ASIANPAINT.NS",
+      "lag": "t-14",
+      "feature": "returns",
+      "weight": 0.040023211389780045,
+      "full_name": "ASIANPAINT.NS_t-14_returns"
+    },
+    {
+      "latent": 114,
+      "ticker": "WIPRO.NS",
+      "lag": "t-2",
+      "feature": "returns",
+      "weight": 0.03952331095933914,
+      "full_name": "WIPRO.NS_t-2_returns"
+    },
+    {
+      "latent": 65,
+      "ticker": "PIDILITIND.NS",
+      "lag": "t-10",
+      "feature": "high",
+      "weight": 0.03872253745794296,
+      "full_name": "PIDILITIND.NS_t-10_high"
+    },
+    {
+      "latent": 5,
+      "ticker": "M&M.NS",
+      "lag": "t-14",
+      "feature": "returns",
+      "weight": 0.03853204473853111,
+      "full_name": "M&M.NS_t-14_returns"
+    },
+    {
+      "latent": 109,
+      "ticker": "ICICIBANK.NS",
+      "lag": "t-4",
+      "feature": "returns",
+      "weight": 0.037982385605573654,
+      "full_name": "ICICIBANK.NS_t-4_returns"
+    },
+    {
+      "latent": 44,
+      "ticker": "SBIN.NS",
+      "lag": "t-3",
+      "feature": "returns",
+      "weight": 0.03794742375612259,
+      "full_name": "SBIN.NS_t-3_returns"
+    },
+    {
+      "latent": 106,
+      "ticker": "SIEMENS.NS",
+      "lag": "t-9",
+      "feature": "returns",
+      "weight": 0.037706926465034485,
+      "full_name": "SIEMENS.NS_t-9_returns"
+    },
+    {
+      "latent": 109,
+      "ticker": "CDSL.NS",
+      "lag": "t-8",
+      "feature": "returns",
+      "weight": 0.037415776401758194,
+      "full_name": "CDSL.NS_t-8_returns"
+    },
+    {
+      "latent": 114,
+      "ticker": "MANAPPURAM.NS",
+      "lag": "t-16",
+      "feature": "returns",
+      "weight": 0.03735008090734482,
+      "full_name": "MANAPPURAM.NS_t-16_returns"
+    },
+    {
+      "latent": 95,
+      "ticker": "BHARTIARTL.NS",
+      "lag": "t-16",
+      "feature": "returns",
+      "weight": 0.037250179797410965,
+      "full_name": "BHARTIARTL.NS_t-16_returns"
+    },
+    {
+      "latent": 109,
+      "ticker": "MANAPPURAM.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.037041954696178436,
+      "full_name": "MANAPPURAM.NS_t-13_returns"
+    },
+    {
+      "latent": 74,
+      "ticker": "TATASTEEL.NS",
+      "lag": "t-6",
+      "feature": "returns",
+      "weight": 0.03673096373677254,
+      "full_name": "TATASTEEL.NS_t-6_returns"
+    },
+    {
+      "latent": 106,
+      "ticker": "SIEMENS.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.0366935133934021,
+      "full_name": "SIEMENS.NS_t-13_returns"
+    },
+    {
+      "latent": 39,
+      "ticker": "CDSL.NS",
+      "lag": "t-8",
+      "feature": "returns",
+      "weight": 0.03642387315630913,
+      "full_name": "CDSL.NS_t-8_returns"
+    },
+    {
+      "latent": 106,
+      "ticker": "GOLDBEES.NS",
+      "lag": "t-2",
+      "feature": "close",
+      "weight": 0.03626156225800514,
+      "full_name": "GOLDBEES.NS_t-2_close"
+    },
+    {
+      "latent": 97,
+      "ticker": "BHARTIARTL.NS",
+      "lag": "t-4",
+      "feature": "volume",
+      "weight": 0.03625814989209175,
+      "full_name": "BHARTIARTL.NS_t-4_volume"
+    },
+    {
+      "latent": 31,
+      "ticker": "PIDILITIND.NS",
+      "lag": "t-16",
+      "feature": "low",
+      "weight": 0.03623029589653015,
+      "full_name": "PIDILITIND.NS_t-16_low"
+    },
+    {
+      "latent": 7,
+      "ticker": "SBIN.NS",
+      "lag": "t-2",
+      "feature": "returns",
+      "weight": 0.03621811419725418,
+      "full_name": "SBIN.NS_t-2_returns"
+    },
+    {
+      "latent": 66,
+      "ticker": "MANAPPURAM.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.0354878306388855,
+      "full_name": "MANAPPURAM.NS_t-13_returns"
+    },
+    {
+      "latent": 11,
+      "ticker": "GOLDBEES.NS",
+      "lag": "t-7",
+      "feature": "returns",
+      "weight": 0.035362523049116135,
+      "full_name": "GOLDBEES.NS_t-7_returns"
+    },
+    {
+      "latent": 65,
+      "ticker": "PIDILITIND.NS",
+      "lag": "t-10",
+      "feature": "low",
+      "weight": 0.035305388271808624,
+      "full_name": "PIDILITIND.NS_t-10_low"
+    }
+  ]
+}

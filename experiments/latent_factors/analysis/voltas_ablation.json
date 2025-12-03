@@ -1,0 +1,9 @@
+{
+  "r2_original": 0.4849083423614502,
+  "r2_masked": 0.4683907628059387,
+  "r2_noisy": 0.46888917684555054,
+  "r2_drop_pct": 3.406330251006341,
+  "broken_latents": 0,
+  "verdict": "\u2705 ROBUST",
+  "action": "Strategy is resilient! VOLTAS correlation may be spurious."
+}

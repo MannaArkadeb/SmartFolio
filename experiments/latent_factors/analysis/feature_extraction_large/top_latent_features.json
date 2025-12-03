@@ -1,0 +1,407 @@
+{
+  "model_r2": 0.5283768746196773,
+  "total_features": 53,
+  "unique_tickers": 21,
+  "features": [
+    {
+      "latent": 115,
+      "ticker": "VOLTAS.NS",
+      "lag": "t-10",
+      "feature": "high",
+      "weight": 0.1562729775905609,
+      "full_name": "VOLTAS.NS_t-10_high"
+    },
+    {
+      "latent": 115,
+      "ticker": "VOLTAS.NS",
+      "lag": "t-10",
+      "feature": "open",
+      "weight": 0.15507781505584717,
+      "full_name": "VOLTAS.NS_t-10_open"
+    },
+    {
+      "latent": 115,
+      "ticker": "VOLTAS.NS",
+      "lag": "t-10",
+      "feature": "volume",
+      "weight": 0.15213853120803833,
+      "full_name": "VOLTAS.NS_t-10_volume"
+    },
+    {
+      "latent": 115,
+      "ticker": "SRF.NS",
+      "lag": "t-10",
+      "feature": "volume",
+      "weight": 0.11041475087404251,
+      "full_name": "SRF.NS_t-10_volume"
+    },
+    {
+      "latent": 115,
+      "ticker": "SRF.NS",
+      "lag": "t-10",
+      "feature": "high",
+      "weight": 0.11024370789527893,
+      "full_name": "SRF.NS_t-10_high"
+    },
+    {
+      "latent": 115,
+      "ticker": "SRF.NS",
+      "lag": "t-10",
+      "feature": "low",
+      "weight": 0.10879194736480713,
+      "full_name": "SRF.NS_t-10_low"
+    },
+    {
+      "latent": 104,
+      "ticker": "IRCON.NS",
+      "lag": "t-7",
+      "feature": "returns",
+      "weight": 0.10250280797481537,
+      "full_name": "IRCON.NS_t-7_returns"
+    },
+    {
+      "latent": 65,
+      "ticker": "IRCON.NS",
+      "lag": "t-2",
+      "feature": "returns",
+      "weight": 0.09666933119297028,
+      "full_name": "IRCON.NS_t-2_returns"
+    },
+    {
+      "latent": 65,
+      "ticker": "IRCON.NS",
+      "lag": "t-1",
+      "feature": "returns",
+      "weight": 0.09253979474306107,
+      "full_name": "IRCON.NS_t-1_returns"
+    },
+    {
+      "latent": 58,
+      "ticker": "IIFL.NS",
+      "lag": "t-8",
+      "feature": "low",
+      "weight": 0.09180430322885513,
+      "full_name": "IIFL.NS_t-8_low"
+    },
+    {
+      "latent": 65,
+      "ticker": "IIFL.NS",
+      "lag": "t-11",
+      "feature": "low",
+      "weight": 0.09016156941652298,
+      "full_name": "IIFL.NS_t-11_low"
+    },
+    {
+      "latent": 58,
+      "ticker": "IIFL.NS",
+      "lag": "t-8",
+      "feature": "open",
+      "weight": 0.09004364907741547,
+      "full_name": "IIFL.NS_t-8_open"
+    },
+    {
+      "latent": 61,
+      "ticker": "OIL.NS",
+      "lag": "t-20",
+      "feature": "close",
+      "weight": 0.08576182276010513,
+      "full_name": "OIL.NS_t-20_close"
+    },
+    {
+      "latent": 83,
+      "ticker": "INDIGO.NS",
+      "lag": "t-5",
+      "feature": "returns",
+      "weight": 0.08459627628326416,
+      "full_name": "INDIGO.NS_t-5_returns"
+    },
+    {
+      "latent": 61,
+      "ticker": "OIL.NS",
+      "lag": "t-20",
+      "feature": "volume",
+      "weight": 0.0842476338148117,
+      "full_name": "OIL.NS_t-20_volume"
+    },
+    {
+      "latent": 7,
+      "ticker": "OIL.NS",
+      "lag": "t-6",
+      "feature": "volume",
+      "weight": 0.0840887799859047,
+      "full_name": "OIL.NS_t-6_volume"
+    },
+    {
+      "latent": 83,
+      "ticker": "MANAPPURAM.NS",
+      "lag": "t-5",
+      "feature": "returns",
+      "weight": 0.08276978135108948,
+      "full_name": "MANAPPURAM.NS_t-5_returns"
+    },
+    {
+      "latent": 57,
+      "ticker": "BEML.NS",
+      "lag": "t-9",
+      "feature": "low",
+      "weight": 0.07074163854122162,
+      "full_name": "BEML.NS_t-9_low"
+    },
+    {
+      "latent": 24,
+      "ticker": "INDIGO.NS",
+      "lag": "t-14",
+      "feature": "returns",
+      "weight": 0.07055788487195969,
+      "full_name": "INDIGO.NS_t-14_returns"
+    },
+    {
+      "latent": 76,
+      "ticker": "MANAPPURAM.NS",
+      "lag": "t-18",
+      "feature": "returns",
+      "weight": 0.06926420331001282,
+      "full_name": "MANAPPURAM.NS_t-18_returns"
+    },
+    {
+      "latent": 57,
+      "ticker": "BEML.NS",
+      "lag": "t-9",
+      "feature": "volume",
+      "weight": 0.06924764066934586,
+      "full_name": "BEML.NS_t-9_volume"
+    },
+    {
+      "latent": 44,
+      "ticker": "CDSL.NS",
+      "lag": "t-5",
+      "feature": "returns",
+      "weight": 0.06657411903142929,
+      "full_name": "CDSL.NS_t-5_returns"
+    },
+    {
+      "latent": 83,
+      "ticker": "MANAPPURAM.NS",
+      "lag": "t-4",
+      "feature": "returns",
+      "weight": 0.06562495231628418,
+      "full_name": "MANAPPURAM.NS_t-4_returns"
+    },
+    {
+      "latent": 44,
+      "ticker": "ASIANPAINT.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.06317116320133209,
+      "full_name": "ASIANPAINT.NS_t-13_returns"
+    },
+    {
+      "latent": 70,
+      "ticker": "DIXON.NS",
+      "lag": "t-9",
+      "feature": "returns",
+      "weight": 0.06316468864679337,
+      "full_name": "DIXON.NS_t-9_returns"
+    },
+    {
+      "latent": 83,
+      "ticker": "CDSL.NS",
+      "lag": "t-20",
+      "feature": "returns",
+      "weight": 0.06241393834352493,
+      "full_name": "CDSL.NS_t-20_returns"
+    },
+    {
+      "latent": 59,
+      "ticker": "CDSL.NS",
+      "lag": "t-11",
+      "feature": "returns",
+      "weight": 0.06237219274044037,
+      "full_name": "CDSL.NS_t-11_returns"
+    },
+    {
+      "latent": 24,
+      "ticker": "GOLDBEES.NS",
+      "lag": "t-8",
+      "feature": "returns",
+      "weight": 0.06236821040511131,
+      "full_name": "GOLDBEES.NS_t-8_returns"
+    },
+    {
+      "latent": 39,
+      "ticker": "DIXON.NS",
+      "lag": "t-16",
+      "feature": "returns",
+      "weight": 0.06205527111887932,
+      "full_name": "DIXON.NS_t-16_returns"
+    },
+    {
+      "latent": 26,
+      "ticker": "SBIN.NS",
+      "lag": "t-1",
+      "feature": "returns",
+      "weight": 0.06101648509502411,
+      "full_name": "SBIN.NS_t-1_returns"
+    },
+    {
+      "latent": 121,
+      "ticker": "INDIGO.NS",
+      "lag": "t-17",
+      "feature": "returns",
+      "weight": 0.060698237270116806,
+      "full_name": "INDIGO.NS_t-17_returns"
+    },
+    {
+      "latent": 87,
+      "ticker": "RAYMOND.NS",
+      "lag": "t-7",
+      "feature": "returns",
+      "weight": 0.06013210862874985,
+      "full_name": "RAYMOND.NS_t-7_returns"
+    },
+    {
+      "latent": 70,
+      "ticker": "HAVELLS.NS",
+      "lag": "t-6",
+      "feature": "returns",
+      "weight": 0.05964724346995354,
+      "full_name": "HAVELLS.NS_t-6_returns"
+    },
+    {
+      "latent": 89,
+      "ticker": "BHARATFORG.NS",
+      "lag": "t-10",
+      "feature": "returns",
+      "weight": 0.0594949945807457,
+      "full_name": "BHARATFORG.NS_t-10_returns"
+    },
+    {
+      "latent": 122,
+      "ticker": "BEML.NS",
+      "lag": "t-19",
+      "feature": "returns",
+      "weight": 0.05917767807841301,
+      "full_name": "BEML.NS_t-19_returns"
+    },
+    {
+      "latent": 74,
+      "ticker": "PRESTIGE.NS",
+      "lag": "t-4",
+      "feature": "returns",
+      "weight": 0.05805540457367897,
+      "full_name": "PRESTIGE.NS_t-4_returns"
+    },
+    {
+      "latent": 104,
+      "ticker": "SBIN.NS",
+      "lag": "t-12",
+      "feature": "returns",
+      "weight": 0.057811301201581955,
+      "full_name": "SBIN.NS_t-12_returns"
+    },
+    {
+      "latent": 27,
+      "ticker": "TITAN.NS",
+      "lag": "t-4",
+      "feature": "returns",
+      "weight": 0.057246096432209015,
+      "full_name": "TITAN.NS_t-4_returns"
+    },
+    {
+      "latent": 63,
+      "ticker": "TITAN.NS",
+      "lag": "t-20",
+      "feature": "returns",
+      "weight": 0.056534722447395325,
+      "full_name": "TITAN.NS_t-20_returns"
+    },
+    {
+      "latent": 5,
+      "ticker": "BATAINDIA.NS",
+      "lag": "t-20",
+      "feature": "returns",
+      "weight": 0.05634032562375069,
+      "full_name": "BATAINDIA.NS_t-20_returns"
+    },
+    {
+      "latent": 73,
+      "ticker": "RAYMOND.NS",
+      "lag": "t-11",
+      "feature": "returns",
+      "weight": 0.055628642439842224,
+      "full_name": "RAYMOND.NS_t-11_returns"
+    },
+    {
+      "latent": 104,
+      "ticker": "SBIN.NS",
+      "lag": "t-11",
+      "feature": "returns",
+      "weight": 0.054953403770923615,
+      "full_name": "SBIN.NS_t-11_returns"
+    },
+    {
+      "latent": 63,
+      "ticker": "TITAN.NS",
+      "lag": "t-16",
+      "feature": "returns",
+      "weight": 0.0549098439514637,
+      "full_name": "TITAN.NS_t-16_returns"
+    },
+    {
+      "latent": 89,
+      "ticker": "HAVELLS.NS",
+      "lag": "t-17",
+      "feature": "returns",
+      "weight": 0.054752133786678314,
+      "full_name": "HAVELLS.NS_t-17_returns"
+    },
+    {
+      "latent": 5,
+      "ticker": "DIXON.NS",
+      "lag": "t-14",
+      "feature": "returns",
+      "weight": 0.054615579545497894,
+      "full_name": "DIXON.NS_t-14_returns"
+    },
+    {
+      "latent": 108,
+      "ticker": "GOLDBEES.NS",
+      "lag": "t-11",
+      "feature": "returns",
+      "weight": 0.05380067229270935,
+      "full_name": "GOLDBEES.NS_t-11_returns"
+    },
+    {
+      "latent": 43,
+      "ticker": "RAYMOND.NS",
+      "lag": "t-1",
+      "feature": "returns",
+      "weight": 0.05337085202336311,
+      "full_name": "RAYMOND.NS_t-1_returns"
+    },
+    {
+      "latent": 99,
+      "ticker": "PRESTIGE.NS",
+      "lag": "t-13",
+      "feature": "returns",
+      "weight": 0.05324363335967064,
+      "full_name": "PRESTIGE.NS_t-13_returns"
+    },
+    {
+      "latent": 74,
+      "ticker": "PRESTIGE.NS",
+      "lag": "t-6",
+      "feature": "returns",
+      "weight": 0.052761491388082504,
+      "full_name": "PRESTIGE.NS_t-6_returns"
+    },
+    {
+      "latent": 87,
+      "ticker": "TATACOMM.NS",
+      "lag": "t-5",
+      "feature": "returns",
+      "weight": 0.05257698893547058,
+      "full_name": "TATACOMM.NS_t-5_returns"
+    }
+  ]
+}

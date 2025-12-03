@@ -1,0 +1,484 @@
+{
+  "summary": {
+    "total_signals": 14,
+    "unique_tickers": 6,
+    "alignment_r2": 0.5236476280252736,
+    "signal_types": {
+      "Volatility": 6,
+      "Liquidity": 4,
+      "Price": 3,
+      "Momentum": 1
+    },
+    "timeframes": {
+      "Position (15-20d)": 8,
+      "Short-term (1-3d)": 3,
+      "Medium-term (4-7d)": 3
+    },
+    "top_tickers": [
+      [
+        "VOLTAS.NS",
+        146
+      ],
+      [
+        "SRF.NS",
+        46
+      ],
+      [
+        "OIL.NS",
+        16
+      ],
+      [
+        "IIFL.NS",
+        5
+      ],
+      [
+        "NESTLEIND.NS",
+        1
+      ],
+      [
+        "IRCON.NS",
+        1
+      ]
+    ]
+  },
+  "signals_by_type": {
+    "Volatility": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "low",
+        "importance": 0.08255864679813385,
+        "description": "VOLTAS.NS low price level 16 days ago",
+        "latent_id": 46
+      },
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "high",
+        "importance": 0.07906632870435715,
+        "description": "VOLTAS.NS high price level 20 days ago",
+        "latent_id": 103
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 2,
+        "feature": "high",
+        "importance": 0.07695439457893372,
+        "description": "OIL.NS high price level 2 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "high",
+        "importance": 0.07571254670619965,
+        "description": "OIL.NS high price level 1 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "low",
+        "importance": 0.0676352009177208,
+        "description": "SRF.NS low price level 5 days ago",
+        "latent_id": 78
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "high",
+        "importance": 0.06642497330904007,
+        "description": "SRF.NS high price level 4 days ago",
+        "latent_id": 122
+      }
+    ],
+    "Liquidity": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "volume",
+        "importance": 0.08073578029870987,
+        "description": "VOLTAS.NS volume activity 16 days ago",
+        "latent_id": 46
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "volume",
+        "importance": 0.07481808215379715,
+        "description": "OIL.NS volume activity 1 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "volume",
+        "importance": 0.05654872581362724,
+        "description": "IIFL.NS volume activity 20 days ago",
+        "latent_id": 85
+      },
+      {
+        "ticker": "NESTLEIND.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "volume",
+        "importance": 0.05134991183876991,
+        "description": "NESTLEIND.NS volume activity 4 days ago",
+        "latent_id": 19
+      }
+    ],
+    "Price": [
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "close",
+        "importance": 0.07100415974855423,
+        "description": "SRF.NS close price 20 days ago",
+        "latent_id": 103
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "open",
+        "importance": 0.05713985115289688,
+        "description": "IIFL.NS open price 16 days ago",
+        "latent_id": 0
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "open",
+        "importance": 0.0569874532520771,
+        "description": "IIFL.NS open price 20 days ago",
+        "latent_id": 85
+      }
+    ],
+    "Momentum": [
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 15,
+        "feature": "returns",
+        "importance": 0.051073405891656876,
+        "description": "IRCON.NS price momentum 15 days ago",
+        "latent_id": 120
+      }
+    ]
+  },
+  "signals_by_timeframe": {
+    "Position (15-20d)": [
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "low",
+        "importance": 0.08255864679813385,
+        "description": "VOLTAS.NS low price level 16 days ago",
+        "latent_id": 46
+      },
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "volume",
+        "importance": 0.08073578029870987,
+        "description": "VOLTAS.NS volume activity 16 days ago",
+        "latent_id": 46
+      },
+      {
+        "ticker": "VOLTAS.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "high",
+        "importance": 0.07906632870435715,
+        "description": "VOLTAS.NS high price level 20 days ago",
+        "latent_id": 103
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "close",
+        "importance": 0.07100415974855423,
+        "description": "SRF.NS close price 20 days ago",
+        "latent_id": 103
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 16,
+        "feature": "open",
+        "importance": 0.05713985115289688,
+        "description": "IIFL.NS open price 16 days ago",
+        "latent_id": 0
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Price",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "open",
+        "importance": 0.0569874532520771,
+        "description": "IIFL.NS open price 20 days ago",
+        "latent_id": 85
+      },
+      {
+        "ticker": "IIFL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 20,
+        "feature": "volume",
+        "importance": 0.05654872581362724,
+        "description": "IIFL.NS volume activity 20 days ago",
+        "latent_id": 85
+      },
+      {
+        "ticker": "IRCON.NS",
+        "signal_type": "Momentum",
+        "timeframe": "Position (15-20d)",
+        "lag_days": 15,
+        "feature": "returns",
+        "importance": 0.051073405891656876,
+        "description": "IRCON.NS price momentum 15 days ago",
+        "latent_id": 120
+      }
+    ],
+    "Short-term (1-3d)": [
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 2,
+        "feature": "high",
+        "importance": 0.07695439457893372,
+        "description": "OIL.NS high price level 2 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "high",
+        "importance": 0.07571254670619965,
+        "description": "OIL.NS high price level 1 days ago",
+        "latent_id": 61
+      },
+      {
+        "ticker": "OIL.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Short-term (1-3d)",
+        "lag_days": 1,
+        "feature": "volume",
+        "importance": 0.07481808215379715,
+        "description": "OIL.NS volume activity 1 days ago",
+        "latent_id": 61
+      }
+    ],
+    "Medium-term (4-7d)": [
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 5,
+        "feature": "low",
+        "importance": 0.0676352009177208,
+        "description": "SRF.NS low price level 5 days ago",
+        "latent_id": 78
+      },
+      {
+        "ticker": "SRF.NS",
+        "signal_type": "Volatility",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "high",
+        "importance": 0.06642497330904007,
+        "description": "SRF.NS high price level 4 days ago",
+        "latent_id": 122
+      },
+      {
+        "ticker": "NESTLEIND.NS",
+        "signal_type": "Liquidity",
+        "timeframe": "Medium-term (4-7d)",
+        "lag_days": 4,
+        "feature": "volume",
+        "importance": 0.05134991183876991,
+        "description": "NESTLEIND.NS volume activity 4 days ago",
+        "latent_id": 19
+      }
+    ]
+  },
+  "all_signals": [
+    {
+      "ticker": "VOLTAS.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 16,
+      "feature": "low",
+      "importance": 0.08255864679813385,
+      "description": "VOLTAS.NS low price level 16 days ago",
+      "latent_id": 46
+    },
+    {
+      "ticker": "VOLTAS.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 16,
+      "feature": "volume",
+      "importance": 0.08073578029870987,
+      "description": "VOLTAS.NS volume activity 16 days ago",
+      "latent_id": 46
+    },
+    {
+      "ticker": "VOLTAS.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "high",
+      "importance": 0.07906632870435715,
+      "description": "VOLTAS.NS high price level 20 days ago",
+      "latent_id": 103
+    },
+    {
+      "ticker": "OIL.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 2,
+      "feature": "high",
+      "importance": 0.07695439457893372,
+      "description": "OIL.NS high price level 2 days ago",
+      "latent_id": 61
+    },
+    {
+      "ticker": "OIL.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 1,
+      "feature": "high",
+      "importance": 0.07571254670619965,
+      "description": "OIL.NS high price level 1 days ago",
+      "latent_id": 61
+    },
+    {
+      "ticker": "OIL.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Short-term (1-3d)",
+      "lag_days": 1,
+      "feature": "volume",
+      "importance": 0.07481808215379715,
+      "description": "OIL.NS volume activity 1 days ago",
+      "latent_id": 61
+    },
+    {
+      "ticker": "SRF.NS",
+      "signal_type": "Price",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "close",
+      "importance": 0.07100415974855423,
+      "description": "SRF.NS close price 20 days ago",
+      "latent_id": 103
+    },
+    {
+      "ticker": "SRF.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 5,
+      "feature": "low",
+      "importance": 0.0676352009177208,
+      "description": "SRF.NS low price level 5 days ago",
+      "latent_id": 78
+    },
+    {
+      "ticker": "SRF.NS",
+      "signal_type": "Volatility",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 4,
+      "feature": "high",
+      "importance": 0.06642497330904007,
+      "description": "SRF.NS high price level 4 days ago",
+      "latent_id": 122
+    },
+    {
+      "ticker": "IIFL.NS",
+      "signal_type": "Price",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 16,
+      "feature": "open",
+      "importance": 0.05713985115289688,
+      "description": "IIFL.NS open price 16 days ago",
+      "latent_id": 0
+    },
+    {
+      "ticker": "IIFL.NS",
+      "signal_type": "Price",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "open",
+      "importance": 0.0569874532520771,
+      "description": "IIFL.NS open price 20 days ago",
+      "latent_id": 85
+    },
+    {
+      "ticker": "IIFL.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 20,
+      "feature": "volume",
+      "importance": 0.05654872581362724,
+      "description": "IIFL.NS volume activity 20 days ago",
+      "latent_id": 85
+    },
+    {
+      "ticker": "NESTLEIND.NS",
+      "signal_type": "Liquidity",
+      "timeframe": "Medium-term (4-7d)",
+      "lag_days": 4,
+      "feature": "volume",
+      "importance": 0.05134991183876991,
+      "description": "NESTLEIND.NS volume activity 4 days ago",
+      "latent_id": 19
+    },
+    {
+      "ticker": "IRCON.NS",
+      "signal_type": "Momentum",
+      "timeframe": "Position (15-20d)",
+      "lag_days": 15,
+      "feature": "returns",
+      "importance": 0.051073405891656876,
+      "description": "IRCON.NS price momentum 15 days ago",
+      "latent_id": 120
+    }
+  ]
+}
